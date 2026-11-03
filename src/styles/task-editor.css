@@ -1,0 +1,435 @@
+/* ==========================================================================
+   Tasks, Phase 2: richer rows, selection, manual order, the task editor,
+   Quick Add options and the project form.
+   ========================================================================== */
+.page-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.todo-meta:empty {
+  display: none;
+}
+
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.meta-item.category {
+  padding: 0 6px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.todo.selected {
+  background: var(--accent-soft);
+}
+
+.select-box {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  padding-top: 1px;
+  cursor: pointer;
+}
+
+.select-box input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.select-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-strong);
+  border-radius: 6px;
+  color: transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.select-box input:checked + .select-mark {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.select-box input:focus-visible + .select-mark {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.todo.draggable {
+  cursor: grab;
+}
+
+.drag-handle {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  margin: 3px -6px 0 -8px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.todo.draggable:hover .drag-handle {
+  opacity: 1;
+}
+
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-4);
+  margin: var(--s-3) 0 var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+}
+
+.bulk-count {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-left: auto;
+}
+
+.completed-hint {
+  margin-top: var(--s-4);
+}
+
+/* Task editor window */
+.task-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.kind-toggle {
+  align-self: flex-start;
+}
+
+.task-form-title {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.task-form-notes {
+  min-height: 44px;
+  resize: vertical;
+  font-size: var(--fs-base);
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.task-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+.task-fields .field {
+  max-width: none;
+  min-width: 0;
+}
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+.time-range {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.time-range .input {
+  min-width: 0;
+}
+
+.priority-segment.active[data-priority='urgent'],
+.priority-segment.active[data-priority='high'],
+.priority-segment.active[data-priority='low'] {
+  color: var(--p);
+}
+
+.repeat-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.repeat-picker > select {
+  max-width: 320px;
+}
+
+.repeat-custom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.repeat-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+.repeat-row .input:not(.input-num) {
+  width: auto;
+}
+
+.weekday-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.subtasks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.subtask-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.subtask,
+.subtask-add {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 34px;
+  padding: 0 var(--s-1);
+  border-radius: var(--r-md);
+}
+
+.subtask:hover {
+  background: var(--hover);
+}
+
+.subtask .bare,
+.subtask-add .bare {
+  flex: 1;
+  font-size: var(--fs-base);
+}
+
+.subtask.done .bare {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.subtask-check {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-strong);
+  border-radius: 50%;
+  color: transparent;
+}
+
+.subtask.done .subtask-check {
+  border-color: transparent;
+  background: var(--muted);
+  color: var(--bg);
+}
+
+.subtask-add {
+  color: var(--muted);
+}
+
+.task-form-meta {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.task-form-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+/* Quick add window */
+.quick-add-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.quick-time .input-time {
+  width: auto;
+  height: 28px;
+  padding: 0 var(--s-2);
+  font-size: var(--fs-sm);
+}
+
+/* Project form */
+.project-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.color-picker legend {
+  margin-bottom: var(--s-2);
+  padding: 0;
+}
+
+.color-swatch {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--pc);
+  cursor: pointer;
+}
+
+.color-swatch input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.color-swatch:has(input:checked) {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--pc);
+}
+
+.color-swatch:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/* Sidebar projects */
+.side-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.side-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--s-2) var(--s-1) var(--s-3);
+}
+
+.side-section-head h2 {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sb-muted);
+}
+
+.side-add {
+  color: var(--sb-muted);
+}
+
+.side-empty {
+  padding: var(--s-1) var(--s-3);
+  font-size: var(--fs-sm);
+  text-align: left;
+  color: var(--sb-muted);
+}
+
+.side-empty:hover {
+  color: var(--sb-text);
+}
+
+.side-sublink.project-link {
+  padding-left: var(--s-3);
+}
+
+.project-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dashboard schedule additions */
+.dash-task-time {
+  flex-shrink: 0;
+  min-width: 64px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-task-title {
+  text-align: left;
+}
+
+.dash-task-title:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+}
+
+.block-marker {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: repeating-linear-gradient(135deg, var(--surface-2) 0 4px, transparent 4px 8px);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.dash-task.block .dash-task-title {
+  color: var(--text-2);
+}
+
+@media (max-width: 560px) {
+  .task-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bulk-actions {
+    margin-left: 0;
+  }
+
+  .dash-task-time {
+    min-width: 0;
+  }
+}

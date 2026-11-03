@@ -6,17 +6,20 @@ import {
   BookIcon,
   CheckIcon,
   ChecklistIcon,
+  RepeatIcon,
   FlagIcon,
   FlameIcon,
   PlusIcon,
   ShieldIcon,
 } from '../components/icons.jsx'
 import useJournal from '../hooks/useJournal.js'
-import { tasks, updateSettings, useSettings, useTasks } from '../data/store.js'
+import { updateSettings, useSettings, useTasks } from '../data/store.js'
 import { addDays, toDateKey } from '../lib/dates.js'
-import { dailyPrompt, formatLongDate, formatTime, greeting } from '../lib/format.js'
+import { dailyPrompt, formatLongDate, formatTime, formatTimeRange, greeting } from '../lib/format.js'
 import { MOODS, computeStreak, entrySnippet, entryTitle, formatDayHeading, getMood } from '../lib/journal.js'
-import { SORTS, formatDue, getPriority, isDone } from '../lib/todos.js'
+import { SORTS, bySchedule, formatDue, getPriority, isBlock, isDone, isOpenTask } from '../lib/todos.js'
+import { openTask } from '../components/tasks/editorStore.js'
+import { completeTask } from '../data/actions.js'
 
 const UPCOMING_DAYS = 7
 const UPCOMING_LIMIT = 6
@@ -28,13 +31,15 @@ export default function Dashboard({ onQuickAdd }) {
   const { entries, create } = useJournal()
   const today = toDateKey()
 
-  const open = allTasks.filter((t) => !isDone(t))
-  const dueToday = allTasks.filter((t) => t.dueDate === today)
+  const open = allTasks.filter(isOpenTask)
+  const dueToday = allTasks.filter((t) => t.dueDate === today && !isBlock(t))
   const doneToday = dueToday.filter(isDone)
   const overdue = open.filter((t) => t.dueDate && t.dueDate < today).sort(SORTS.due.compare)
-  const todayOpen = dueToday.filter((t) => !isDone(t)).sort(SORTS.priority.compare)
+  const todayOpen = dueToday.filter((t) => !isDone(t))
+  // Today in time order: timed tasks and time blocks first, then the rest by priority.
+  const schedule = [...todayOpen, ...allTasks.filter((t) => isBlock(t) && t.dueDate === today)].sort(bySchedule)
   const completedToday = allTasks
-    .filter((t) => isDone(t) && t.completedAt && toDateKey(new Date(t.completedAt)) === today)
+    .filter((t) => isDone(t) && !isBlock(t) && t.completedAt && toDateKey(new Date(t.completedAt)) === today)
     .sort((a, b) => b.completedAt - a.completedAt)
   const horizon = addDays(today, UPCOMING_DAYS)
   const upcoming = open
@@ -89,16 +94,17 @@ export default function Dashboard({ onQuickAdd }) {
                     </ul>
                   </>
                 )}
-                {todayOpen.length > 0 ? (
+                {schedule.length > 0 && (
                   <>
                     {overdue.length > 0 && <p className="dash-sublabel">Due today</p>}
                     <ul className="dash-tasks">
-                      {todayOpen.map((t) => (
+                      {schedule.map((t) => (
                         <DashTask key={t.id} task={t} />
                       ))}
                     </ul>
                   </>
-                ) : (
+                )}
+                {todayOpen.length === 0 && (
                   <p className="dash-empty">
                     {dueToday.length ? 'Everything due today is done.' : 'Nothing due today.'}{' '}
                     <button className="link" onClick={onQuickAdd}>
@@ -183,21 +189,35 @@ function SectionHead({ id, title, to, count }) {
 
 function DashTask({ task, showDue }) {
   const priority = getPriority(task.priority)
+  const block = isBlock(task)
   function complete() {
-    tasks.update(task.id, { status: 'done', completedAt: Date.now() })
-    showToast('Task completed', { undo: () => tasks.update(task.id, { status: 'open', completedAt: null }) })
+    const undo = completeTask(task)
+    showToast(task.recurrence ? 'Done. Next one scheduled' : 'Task completed', { undo })
   }
   return (
-    <li className="dash-task" data-priority={task.priority}>
-      <label className="check" title="Mark as done">
-        <input type="checkbox" checked={false} onChange={complete} aria-label={`Complete "${task.title}"`} />
-        <span className="checkmark">
-          <CheckIcon width={12} height={12} strokeWidth={3} />
-        </span>
-      </label>
-      <span className="dash-task-title">{task.title}</span>
+    <li className={block ? 'dash-task block' : 'dash-task'} data-priority={task.priority}>
+      {block ? (
+        <span className="block-marker" aria-hidden="true" />
+      ) : (
+        <label className="check" title="Mark as done">
+          <input type="checkbox" checked={false} onChange={complete} aria-label={`Complete "${task.title}"`} />
+          <span className="checkmark">
+            <CheckIcon width={12} height={12} strokeWidth={3} />
+          </span>
+        </label>
+      )}
+      {task.startTime && <span className="dash-task-time">{formatTimeRange(task.startTime, task.endTime)}</span>}
+      <button className="dash-task-title" onClick={() => openTask(task.id)}>
+        {task.title}
+        {block && <span className="sr-only"> (time block)</span>}
+      </button>
       <span className="dash-task-meta">
-        {task.priority !== 'normal' && (
+        {task.recurrence && (
+          <span className="meta-item" title="Repeats">
+            <RepeatIcon width={13} height={13} />
+          </span>
+        )}
+        {!block && task.priority !== 'normal' && (
           <span className="priority-badge">
             <FlagIcon width={13} height={13} />
             {priority.label}

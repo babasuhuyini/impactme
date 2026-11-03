@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BookIcon, ChecklistIcon, DotsIcon, HomeIcon } from './icons.jsx'
+import { BookIcon, CalendarIcon, ChecklistIcon, DotsIcon, HomeIcon } from './icons.jsx'
 
 const linkClass = ({ isActive }) => (isActive ? 'bottom-link active' : 'bottom-link')
 
@@ -15,11 +15,15 @@ export default function BottomNav({ onMore }) {
         <ChecklistIcon width={22} height={22} />
         <span>Tasks</span>
       </NavLink>
+      <NavLink to="/calendar" className={linkClass}>
+        <CalendarIcon width={22} height={22} />
+        <span>Calendar</span>
+      </NavLink>
       <NavLink to="/journal" className={linkClass}>
         <BookIcon width={22} height={22} />
         <span>Journal</span>
       </NavLink>
-      <button className="bottom-link" onClick={onMore} aria-label="More: settings and theme">
+      <button className="bottom-link" onClick={onMore} aria-label="More: projects, settings and theme">
         <DotsIcon width={22} height={22} />
         <span>More</span>
       </button>

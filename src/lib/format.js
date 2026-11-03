@@ -8,6 +8,27 @@ export function formatTime(timestamp) {
   return new Date(timestamp).toLocaleTimeString(undefined, opts)
 }
 
+// 'HH:MM' → "2:30 PM" or "14:30", following the same preference.
+export function formatClock(time) {
+  if (!time) return ''
+  const [h, m] = time.split(':').map(Number)
+  return formatTime(new Date(2000, 0, 1, h, m).getTime())
+}
+
+// Hour labels for the calendar: "9 AM" or "09:00".
+export function formatHour(hour) {
+  const { timeFormat } = getSettings()
+  const opts = { hour: 'numeric' }
+  if (timeFormat !== 'auto') opts.hour12 = timeFormat === '12'
+  if (opts.hour12 === false) return `${String(hour).padStart(2, '0')}:00`
+  return new Date(2000, 0, 1, hour).toLocaleTimeString(undefined, opts)
+}
+
+export function formatTimeRange(start, end) {
+  if (!start) return ''
+  return end ? `${formatClock(start)} – ${formatClock(end)}` : formatClock(start)
+}
+
 export function formatLongDate(date = new Date()) {
   return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
 }

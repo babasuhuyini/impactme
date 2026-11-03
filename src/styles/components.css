@@ -1,0 +1,154 @@
+/* ==========================================================================
+   Shared pieces added in Phase 2: project colours, dialog sizes, hints,
+   confirmation bars and the "Understood" chips under Quick Add.
+   ========================================================================== */
+
+/* Project colours, readable as dots and tinted chips in both themes */
+[data-color='emerald'] { --pc: #12936f; }
+[data-color='blue'] { --pc: #3b74d1; }
+[data-color='violet'] { --pc: #7c5cd6; }
+[data-color='rose'] { --pc: #d4456f; }
+[data-color='orange'] { --pc: #dc6f26; }
+[data-color='amber'] { --pc: #c79a12; }
+[data-color='teal'] { --pc: #1594a8; }
+[data-color='slate'] { --pc: #6b7a86; }
+
+.project-dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--pc, var(--muted));
+}
+
+.project-dot.lg {
+  width: 14px;
+  height: 14px;
+  margin-top: 10px;
+  border-radius: 4px;
+}
+
+.project-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.project-chip::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--pc);
+}
+
+.field-hint {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.input-num {
+  width: 72px;
+}
+
+.input-sm {
+  width: auto;
+  height: 30px;
+  font-size: var(--fs-sm);
+}
+
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirm-message {
+  color: var(--text-2);
+}
+
+.dialog-sm {
+  width: min(420px, calc(100% - var(--s-8)));
+}
+
+.dialog-lg {
+  width: min(680px, calc(100% - var(--s-8)));
+}
+
+.confirm-bar {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.confirm-bar span {
+  flex: 1;
+  min-width: 200px;
+}
+
+.parsed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.parsed-label {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.chip.parsed-chip {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.btn.active {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent-ink);
+}
+
+.conflict-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--priority-high);
+}
+
+@media (max-width: 560px) {
+  .dialog-sm,
+  .dialog-lg {
+    width: calc(100% - var(--s-4));
+  }
+}
+
+/* Long windows (the task editor) keep their buttons in reach while scrolling. */
+.dialog-lg .dialog-foot {
+  position: sticky;
+  z-index: 2;
+  bottom: calc(var(--s-6) * -1);
+  margin-bottom: calc(var(--s-6) * -1);
+  padding-bottom: var(--s-6);
+  background: var(--surface);
+}
+
+@media (max-width: 560px) {
+  .dialog-lg .dialog-foot {
+    bottom: calc(var(--s-4) * -1);
+    margin-bottom: calc(var(--s-4) * -1);
+    padding-bottom: var(--s-4);
+  }
+}

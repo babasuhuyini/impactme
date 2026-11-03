@@ -12,6 +12,9 @@ import './styles/dashboard.css'
 import './styles/journal.css'
 import './styles/todos.css'
 import './styles/settings.css'
+import './styles/components.css'
+import './styles/task-editor.css'
+import './styles/calendar.css'
 
 const root = createRoot(document.getElementById('root'))
 

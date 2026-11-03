@@ -14,9 +14,9 @@ import {
   useSettings,
   useTasks,
 } from '../data/store.js'
-import { backupFilename, createBackup, downloadFile, parseBackup } from '../data/backup.js'
-import { normalizeEntry, normalizeList, normalizeSettings, normalizeTask } from '../data/models.js'
+import { backupFilename, createBackup, downloadFile, normalizeBackupData, parseBackup } from '../data/backup.js'
 import { formatBytes } from '../lib/format.js'
+import { resolveWeekStart } from '../lib/calendar.js'
 import { formatRelative } from '../lib/dates.js'
 
 const THEMES = [
@@ -30,10 +30,11 @@ const sampleTime = (hour12) =>
   SAMPLE_TIME.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12 })
 
 const SHORTCUTS = [
-  ['Q', 'Quick add a task'],
+  ['Q', 'Quick add a task (understands “tomorrow at 9am”, “every weekday”)'],
   ['J', 'Start a new journal entry'],
   ['Enter', 'Add a task or move from title to text'],
   ['Ctrl + Enter', 'Save a task you’re editing'],
+  ['Alt + ↑ / ↓', 'Move a task up or down when sorted by My order'],
   ['Esc', 'Close a window or cancel an edit'],
 ]
 
@@ -47,6 +48,7 @@ export default function Settings() {
         </header>
         <ProfileSection />
         <AppearanceSection />
+        <CalendarSection />
         <DataSection />
         <ShortcutsSection />
         <AboutSection />
@@ -137,6 +139,43 @@ function AppearanceSection() {
   )
 }
 
+function CalendarSection() {
+  const { weekStart, calendarView } = useSettings()
+  const auto = resolveWeekStart('auto') === 0 ? 'Sunday' : 'Monday'
+  return (
+    <Section title="Calendar" description="How weeks and the calendar are laid out.">
+      <div className="field">
+        <span className="field-label">Weeks start on</span>
+        <Segmented
+          label="Weeks start on"
+          value={weekStart}
+          options={[
+            ['auto', `Automatic (${auto})`],
+            ['sunday', 'Sunday'],
+            ['monday', 'Monday'],
+          ]}
+          onChange={(value) => updateSettings({ weekStart: value })}
+        />
+      </div>
+      <div className="field">
+        <span className="field-label">Calendar opens in</span>
+        <Segmented
+          label="Calendar opens in"
+          value={calendarView}
+          options={[
+            ['day', 'Day'],
+            ['week', 'Week'],
+            ['month', 'Month'],
+            ['agenda', 'Agenda'],
+          ]}
+          onChange={(value) => updateSettings({ calendarView: value })}
+        />
+        <p className="field-hint">On a phone, Week opens as Day so it stays readable.</p>
+      </div>
+    </Section>
+  )
+}
+
 function DataSection() {
   const settings = useSettings()
   const taskCount = useTasks().length
@@ -179,12 +218,7 @@ function DataSection() {
   }
 
   async function undoRestore() {
-    const data = {
-      tasks: normalizeList(safety.tasks, normalizeTask).records,
-      journal: normalizeList(safety.journal, normalizeEntry).records,
-      settings: safety.settings ? normalizeSettings(safety.settings) : null,
-    }
-    await restoreData(data, 'replace')
+    await restoreData(normalizeBackupData(safety).data, 'replace')
     refresh()
     showToast('Your data is back to how it was before the last restore')
   }

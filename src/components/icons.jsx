@@ -182,6 +182,79 @@ export const ArrowRightIcon = (props) => (
   </svg>
 )
 
+export const RepeatIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="m17 2 4 4-4 4" />
+    <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+    <path d="m7 22-4-4 4-4" />
+    <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+  </svg>
+)
+
+export const ClockIcon = (props) => (
+  <svg {...base} {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+)
+
+export const InboxIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+    <path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z" />
+  </svg>
+)
+
+export const FolderIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  </svg>
+)
+
+export const GripIcon = (props) => (
+  <svg {...base} {...props}>
+    {[6, 12, 18].map((y) => [9, 15].map((x) => <circle key={`${x}${y}`} cx={x} cy={y} r="1" fill="currentColor" />))}
+  </svg>
+)
+
+export const CopyIcon = (props) => (
+  <svg {...base} {...props}>
+    <rect x="9" y="9" width="12" height="12" rx="2" />
+    <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+  </svg>
+)
+
+export const ChevronLeftIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="m15 18-6-6 6-6" />
+  </svg>
+)
+
+export const AlertIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+    <path d="M12 9v4M12 17h.01" />
+  </svg>
+)
+
+export const SubtasksIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M4 5h4M4 5v12a2 2 0 0 0 2 2h2M4 11h4" />
+    <rect x="11" y="3" width="10" height="4" rx="1" />
+    <rect x="11" y="9" width="10" height="4" rx="1" />
+    <rect x="11" y="17" width="10" height="4" rx="1" />
+  </svg>
+)
+
+export const SelectIcon = (props) => (
+  <svg {...base} {...props}>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <path d="m4.8 6.4 1.4 1.4 2.2-2.6" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <path d="M14 6.5h7M14 17.5h7" />
+  </svg>
+)
+
 // The ImpactMe mark: a day drawn as a ring, three quarters done, with you at the centre.
 export const BrandMark = ({ size = 24, ...props }) => (
   <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" {...props}>

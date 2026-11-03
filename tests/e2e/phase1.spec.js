@@ -88,7 +88,7 @@ test('quick add, completing and undo work from anywhere', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Add task' }).click()
   await expect(dialog.locator('.field-error')).toHaveText('Give the task a name first.')
 
-  await dialog.getByRole('textbox').fill('Buy milk #errands')
+  await dialog.getByLabel('Task name').fill('Buy milk #errands')
   await dialog.getByRole('button', { name: 'Today' }).click()
   await dialog.getByRole('radio', { name: 'Urgent' }).click()
   await shot(page, 'quick-add')
@@ -187,6 +187,7 @@ test('settings: name, theme, backup and restore', async ({ page }, testInfo) => 
   // Lose a task, then get it back from the backup.
   await page.goto('./#/tasks')
   await page.locator('.todo', { hasText: 'Delete me' }).getByRole('button', { name: /^Delete "/ }).click()
+  await page.getByRole('dialog', { name: 'Delete task?' }).getByRole('button', { name: 'Delete' }).click()
   await expect(page.locator('.todo')).toHaveCount(1)
 
   await page.goto('./#/settings')

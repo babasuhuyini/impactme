@@ -10,16 +10,17 @@ import {
   DEFAULT_SETTINGS,
   normalizeEntry,
   normalizeList,
+  normalizeProject,
   normalizeSettings,
   normalizeTask,
 } from './models.js'
 
-const NORMALIZE = { tasks: normalizeTask, journal: normalizeEntry }
+const NORMALIZE = { tasks: normalizeTask, journal: normalizeEntry, projects: normalizeProject }
 const TABLES = Object.keys(NORMALIZE)
 export const THEME_MIRROR_KEY = 'impactme.theme'
 export const SAFETY_KEY = 'safety.beforeRestore'
 
-const state = { tasks: [], journal: [], settings: DEFAULT_SETTINGS, saveStatus: 'saved' }
+const state = { tasks: [], journal: [], projects: [], settings: DEFAULT_SETTINGS, saveStatus: 'saved' }
 const listeners = new Set()
 const emit = () => listeners.forEach((notify) => notify())
 const subscribe = (notify) => {
@@ -81,7 +82,7 @@ async function writePending() {
   if (!work.length) return
 
   try {
-    await db.transaction('rw', db.tasks, db.journal, async () => {
+    await db.transaction('rw', TABLES.map((t) => db[t]), async () => {
       for (const [table, ops] of work) {
         const puts = ops.filter(([, r]) => r).map(([, r]) => r)
         const deletes = ops.filter(([, r]) => !r).map(([id]) => id)
@@ -184,6 +185,7 @@ function collection(table) {
 
 export const tasks = collection('tasks')
 export const journal = collection('journal')
+export const projects = collection('projects')
 
 export function updateSettings(patch) {
   state.settings = normalizeSettings({ ...state.settings, ...patch })
@@ -196,12 +198,18 @@ export function updateSettings(patch) {
 }
 
 export const getSettings = () => state.settings
-export const getSnapshot = () => ({ tasks: state.tasks, journal: state.journal, settings: state.settings })
+export const getSnapshot = () => ({
+  tasks: state.tasks,
+  journal: state.journal,
+  projects: state.projects,
+  settings: state.settings,
+})
 
 /* React hooks ------------------------------------------------------------ */
 
 export const useTasks = () => useSyncExternalStore(subscribe, () => state.tasks)
 export const useJournalEntries = () => useSyncExternalStore(subscribe, () => state.journal)
+export const useProjects = () => useSyncExternalStore(subscribe, () => state.projects)
 export const useSettings = () => useSyncExternalStore(subscribe, () => state.settings)
 export const useSaveStatus = () => useSyncExternalStore(subscribe, () => state.saveStatus)
 
@@ -213,20 +221,22 @@ export const useSaveStatus = () => useSyncExternalStore(subscribe, () => state.s
 export async function restoreData(data, mode) {
   await flush()
   const result = { added: 0, updated: 0 }
-  await db.transaction('rw', db.tasks, db.journal, db.kv, async () => {
+  await db.transaction('rw', [...TABLES.map((t) => db[t]), db.kv], async () => {
     const before = {
       tasks: await db.tasks.toArray(),
       journal: await db.journal.toArray(),
+      projects: await db.projects.toArray(),
       settings: (await db.kv.get('settings'))?.value ?? null,
     }
     await db.kv.put({ key: SAFETY_KEY, value: { at: Date.now(), ...before } })
 
     for (const table of TABLES) {
       const existing = new Map(before[table].map((r) => [r.id, r]))
+      const records = data[table] ?? [] // older backups have no projects
       const incoming =
         mode === 'replace'
-          ? data[table]
-          : data[table].filter((r) => !existing.has(r.id) || r.updatedAt > (existing.get(r.id).updatedAt ?? 0))
+          ? records
+          : records.filter((r) => !existing.has(r.id) || r.updatedAt > (existing.get(r.id).updatedAt ?? 0))
       for (const r of incoming) existing.has(r.id) ? result.updated++ : result.added++
       if (mode === 'replace') await db[table].clear()
       await db[table].bulkPut(incoming)

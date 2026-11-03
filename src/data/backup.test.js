@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { backupFilename, createBackup, parseBackup } from './backup.js'
-import { normalizeEntry, normalizeSettings, normalizeTask } from './models.js'
+import { normalizeEntry, normalizeProject, normalizeSettings, normalizeTask } from './models.js'
 
 const sample = {
   tasks: [normalizeTask({ id: 't', title: 'Task', createdAt: 1 })],
   journal: [normalizeEntry({ id: 'e', title: 'Entry', createdAt: 1 })],
+  projects: [normalizeProject({ id: 'p', name: 'Home', color: 'blue', createdAt: 1 })],
   settings: normalizeSettings({ name: 'Ama', theme: 'dark' }),
 }
 
@@ -16,6 +17,14 @@ describe('backups', () => {
     expect(parsed.data).toEqual(sample)
     expect(parsed.exportedAt).toBe(Date.parse('2026-11-03T10:00:00Z'))
     expect(parsed.skipped).toBe(0)
+  })
+
+  it('still reads version 1 backups, which had no projects', () => {
+    const v1 = { format: 'impactme-backup', version: 1, data: { tasks: sample.tasks, journal: sample.journal } }
+    const parsed = parseBackup(JSON.stringify(v1))
+    expect(parsed.ok).toBe(true)
+    expect(parsed.data.projects).toEqual([])
+    expect(parsed.data.tasks).toEqual(sample.tasks)
   })
 
   it('names files by date', () => {

@@ -1,32 +1,38 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import DuePicker from './DuePicker.jsx'
 import PriorityPicker from './PriorityPicker.jsx'
+import ParsedChips from '../tasks/ParsedChips.jsx'
 import { PlusIcon } from '../icons.jsx'
-import { extractTags } from '../../lib/todos.js'
+import { parseQuickAdd } from '../../lib/parse.js'
 
-const PLACEHOLDER = 'Add a task… use #tags to organise'
+const PLACEHOLDER = 'Add a task… try “Call Ama friday at 2pm #family”'
 
-export default function TodoComposer({ onAdd }) {
+// `defaults` come from the view, e.g. Today's date or the open project.
+export default function TodoComposer({ onAdd, defaults = {} }) {
   const [text, setText] = useState('')
-  const [dueDate, setDueDate] = useState(null)
-  const [priority, setPriority] = useState('normal')
+  const [ignore, setIgnore] = useState([])
+  const [picked, setPicked] = useState({})
   const [nudge, setNudge] = useState(false)
   const [needsText, setNeedsText] = useState(false)
   const inputRef = useRef(null)
 
+  const parsed = useMemo(() => parseQuickAdd(text, { ignore }), [text, ignore])
+  const dueDate = 'dueDate' in picked ? picked.dueDate : parsed.dueDate ?? defaults.dueDate ?? null
+  const priority = picked.priority ?? parsed.priority ?? 'normal'
+
   // Options appear once there's something to attach them to.
-  const showOptions = Boolean(text.trim() || dueDate || priority !== 'normal')
+  const showOptions = Boolean(text.trim() || picked.dueDate || picked.priority)
 
   // After picking a date or priority, return to the text so Enter adds the task.
-  const andRefocus = (setter) => (value) => {
-    setter(value)
+  const pick = (field) => (value) => {
+    setPicked((p) => ({ ...p, [field]: value }))
     inputRef.current?.focus()
   }
 
   function reset() {
     setText('')
-    setDueDate(null)
-    setPriority('normal')
+    setIgnore([])
+    setPicked({})
   }
 
   function submit(e) {
@@ -38,7 +44,18 @@ export default function TodoComposer({ onAdd }) {
       inputRef.current?.focus()
       return
     }
-    onAdd({ ...extractTags(text), dueDate, priority })
+    const sameDay = dueDate === parsed.dueDate
+    onAdd({
+      ...defaults,
+      title: parsed.title,
+      tags: parsed.tags,
+      dueDate,
+      // A time or repeat read from the text only applies to the date it came with.
+      startTime: sameDay ? parsed.startTime : null,
+      endTime: sameDay ? parsed.endTime : null,
+      recurrence: sameDay ? parsed.recurrence : null,
+      priority,
+    })
     reset()
     inputRef.current?.focus()
   }
@@ -59,6 +76,7 @@ export default function TodoComposer({ onAdd }) {
           onChange={(e) => {
             setText(e.target.value)
             setNeedsText(false)
+            if (!e.target.value) setIgnore([])
           }}
           placeholder={needsText ? 'Type a task first, then press Enter' : PLACEHOLDER}
           aria-label="New task"
@@ -69,8 +87,9 @@ export default function TodoComposer({ onAdd }) {
       </div>
       {showOptions && (
         <div className="composer-options">
-          <DuePicker value={dueDate} onChange={andRefocus(setDueDate)} />
-          <PriorityPicker value={priority} onChange={andRefocus(setPriority)} />
+          <ParsedChips parsed={parsed} onIgnore={(kind) => setIgnore((list) => [...list, kind])} />
+          <DuePicker value={dueDate} onChange={pick('dueDate')} />
+          <PriorityPicker value={priority} onChange={pick('priority')} />
         </div>
       )}
     </form>

@@ -10,3 +10,9 @@ db.version(1).stores({
   journal: 'id, date, updatedAt',
   kv: 'key', // settings and bookkeeping (migrations, safety snapshots)
 })
+
+// Phase 2: projects, and an index for finding a repeating task's completed copies.
+db.version(2).stores({
+  tasks: 'id, status, dueDate, updatedAt, projectId, seriesId',
+  projects: 'id, order',
+})

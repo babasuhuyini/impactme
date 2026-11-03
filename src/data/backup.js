@@ -1,20 +1,37 @@
-import { normalizeEntry, normalizeList, normalizeSettings, normalizeTask } from './models.js'
+import { normalizeEntry, normalizeList, normalizeProject, normalizeSettings, normalizeTask } from './models.js'
 import { toDateKey } from '../lib/dates.js'
 
 export const BACKUP_FORMAT = 'impactme-backup'
-export const BACKUP_VERSION = 1
+// 1: tasks, journal, settings. 2: adds projects.
+export const BACKUP_VERSION = 2
 
-export function createBackup({ tasks, journal, settings }, now = new Date()) {
+export function createBackup({ tasks, journal, projects, settings }, now = new Date()) {
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     app: 'ImpactMe',
     exportedAt: now.toISOString(),
-    data: { tasks, journal, settings },
+    data: { tasks, journal, projects, settings },
   }
 }
 
 export const backupFilename = (now = new Date()) => `impactme-backup-${toDateKey(now)}.json`
+
+// Validates the contents of a backup (or a safety snapshot) record by record.
+export function normalizeBackupData(data) {
+  const tasks = normalizeList(data.tasks, normalizeTask)
+  const journal = normalizeList(data.journal, normalizeEntry)
+  const projects = normalizeList(data.projects ?? [], normalizeProject)
+  return {
+    skipped: tasks.skipped + journal.skipped + projects.skipped,
+    data: {
+      tasks: tasks.records,
+      journal: journal.records,
+      projects: projects.records,
+      settings: data.settings ? normalizeSettings(data.settings) : null,
+    },
+  }
+}
 
 // Checks a backup file's text before anything is imported. Never throws.
 export function parseBackup(text) {
@@ -33,18 +50,11 @@ export function parseBackup(text) {
       error: 'This backup was made by a newer version of ImpactMe. Reload the app to update, then try again.',
     }
   }
-  const tasks = normalizeList(file.data.tasks, normalizeTask)
-  const journal = normalizeList(file.data.journal, normalizeEntry)
   const exportedAt = Date.parse(file.exportedAt)
   return {
     ok: true,
     exportedAt: Number.isNaN(exportedAt) ? null : exportedAt,
-    skipped: tasks.skipped + journal.skipped,
-    data: {
-      tasks: tasks.records,
-      journal: journal.records,
-      settings: file.data.settings ? normalizeSettings(file.data.settings) : null,
-    },
+    ...normalizeBackupData(file.data),
   }
 }
 
