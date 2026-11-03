@@ -1,53 +1,38 @@
 import { addDays, parseDateKey, toDateKey } from './dates.js'
+import { PRIORITIES } from '../data/models.js'
 
-export const PRIORITIES = [
-  { value: 3, label: 'High' },
-  { value: 2, label: 'Medium' },
-  { value: 1, label: 'Low' },
-]
+export { PRIORITIES }
 
 export function getPriority(value) {
-  return PRIORITIES.find((p) => p.value === value) ?? null
+  return PRIORITIES.find((p) => p.value === value) ?? PRIORITIES.find((p) => p.value === 'normal')
 }
 
-// Early todos were { id, text, done }; fill in the fields added since.
-export function normalizeTodo(todo) {
-  return {
-    notes: '',
-    priority: 0,
-    due: null,
-    tags: [],
-    createdAt: 0,
-    completedAt: null,
-    ...todo,
-  }
-}
+export const isDone = (task) => task.status === 'done'
 
-// Pulls "#tag" words out of quick-add text: "Call mum #family" → text "Call mum", tags ["family"].
+// Pulls "#tag" words out of quick-add text: "Call mum #family" → title "Call mum", tags ["family"].
 export function extractTags(input) {
   const pattern = /(^|\s)#([\w-]+)/g
   const tags = [...input.matchAll(pattern)].map((m) => m[2].toLowerCase())
-  const text = input.replace(pattern, ' ').replace(/\s+/g, ' ').trim()
-  return { text: text || input.trim(), tags: [...new Set(tags)] }
+  const title = input.replace(pattern, ' ').replace(/\s+/g, ' ').trim()
+  return { title: title || input.trim(), tags: [...new Set(tags)] }
 }
 
-export function dueStatus(due) {
-  if (!due) return null
-  const today = toDateKey()
-  if (due < today) return 'overdue'
-  if (due === today) return 'today'
-  if (due === addDays(today, 1)) return 'tomorrow'
-  if (due <= addDays(today, 7)) return 'week'
+export function dueStatus(dueDate, today = toDateKey()) {
+  if (!dueDate) return null
+  if (dueDate < today) return 'overdue'
+  if (dueDate === today) return 'today'
+  if (dueDate === addDays(today, 1)) return 'tomorrow'
+  if (dueDate <= addDays(today, 7)) return 'week'
   return 'later'
 }
 
-export function formatDue(due) {
+export function formatDue(dueDate) {
   const today = toDateKey()
-  if (due === today) return 'Today'
-  if (due === addDays(today, 1)) return 'Tomorrow'
-  if (due === addDays(today, -1)) return 'Yesterday'
-  const date = parseDateKey(due)
-  if (dueStatus(due) === 'week') return date.toLocaleDateString(undefined, { weekday: 'long' })
+  if (dueDate === today) return 'Today'
+  if (dueDate === addDays(today, 1)) return 'Tomorrow'
+  if (dueDate === addDays(today, -1)) return 'Yesterday'
+  const date = parseDateKey(dueDate)
+  if (dueStatus(dueDate) === 'week') return date.toLocaleDateString(undefined, { weekday: 'long' })
   const opts = { month: 'short', day: 'numeric' }
   if (date.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric'
   return date.toLocaleDateString(undefined, opts)
@@ -55,18 +40,19 @@ export function formatDue(due) {
 
 export const VIEWS = {
   all: { label: 'All', test: () => true, empty: 'All caught up.' },
-  today: { label: 'Today', test: (t) => dueStatus(t.due) === 'today', empty: 'Nothing due today.' },
+  today: { label: 'Today', test: (t) => dueStatus(t.dueDate) === 'today', empty: 'Nothing due today.' },
   upcoming: {
     label: 'Upcoming',
-    test: (t) => ['tomorrow', 'week', 'later'].includes(dueStatus(t.due)),
+    test: (t) => ['tomorrow', 'week', 'later'].includes(dueStatus(t.dueDate)),
     empty: 'Nothing scheduled ahead.',
   },
-  overdue: { label: 'Overdue', test: (t) => dueStatus(t.due) === 'overdue', empty: 'Nothing overdue. Nice.' },
-  someday: { label: 'No date', test: (t) => !t.due, empty: 'Every task has a date.' },
+  overdue: { label: 'Overdue', test: (t) => dueStatus(t.dueDate) === 'overdue', empty: 'Nothing overdue. Nice.' },
+  someday: { label: 'No date', test: (t) => !t.dueDate, empty: 'Every task has a date.' },
 }
 
-const byDue = (a, b) => (a.due ?? '9999-12-31').localeCompare(b.due ?? '9999-12-31')
-const byPriority = (a, b) => b.priority - a.priority
+const rank = (t) => getPriority(t.priority).rank
+const byDue = (a, b) => (a.dueDate ?? '9999-12-31').localeCompare(b.dueDate ?? '9999-12-31')
+const byPriority = (a, b) => rank(b) - rank(a)
 const byCreated = (a, b) => a.createdAt - b.createdAt
 
 export const SORTS = {
@@ -75,8 +61,8 @@ export const SORTS = {
   newest: { label: 'Recently added', compare: (a, b) => byCreated(b, a) },
 }
 
-export function matchesQuery(todo, query) {
+export function matchesQuery(task, query) {
   const q = query.trim().toLowerCase()
   if (!q) return true
-  return [todo.text, todo.notes, ...todo.tags].some((field) => field.toLowerCase().includes(q))
+  return [task.title, task.description, ...task.tags].some((field) => field.toLowerCase().includes(q))
 }

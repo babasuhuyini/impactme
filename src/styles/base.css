@@ -1,11 +1,12 @@
 /* ==========================================================================
-   Design tokens
+   Design tokens: ImpactMe
+   One emerald accent, green-tinted neutrals, amber only for achievements.
    ========================================================================== */
 :root {
   color-scheme: light;
 
-  --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-doc: 'Literata', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-doc: 'Literata Variable', Georgia, 'Times New Roman', serif;
 
   /* Type scale */
   --fs-2xs: 11px;
@@ -14,8 +15,8 @@
   --fs-base: 14px;
   --fs-md: 15px;
   --fs-lg: 17px;
-  --fs-xl: 22px;
-  --fs-2xl: 30px;
+  --fs-xl: 21px;
+  --fs-2xl: 28px;
 
   /* Spacing scale (4px grid) */
   --s-1: 4px;
@@ -31,36 +32,40 @@
   --r-sm: 6px;
   --r-md: 8px;
   --r-lg: 12px;
+  --r-xl: 16px;
   --r-full: 999px;
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
 
   /* Surfaces & text */
   --bg: #ffffff;
-  --bg-subtle: #f7f7f6;
+  --bg-subtle: #f6f8f7;
   --surface: #ffffff;
-  --surface-2: #f1f1ef;
-  --hover: #f0f0ee;
-  --text: #1b1b1b;
-  --text-2: #4f4f4f;
-  --muted: #8a8a8a;
-  --border: #ebebe9;
-  --border-strong: #d7d7d4;
+  --surface-2: #eef2f0;
+  --hover: #f1f4f2;
+  --text: #14201b;
+  --text-2: #3d4a44;
+  --muted: #66746e;
+  --border: #e4eae7;
+  --border-strong: #d0d9d5;
 
   /* Brand */
-  --accent: #00a82d;
-  --accent-hover: #008f26;
-  --accent-soft: #e7f6eb;
-  --accent-ink: #00801f;
+  --accent: #0e8a6a;
+  --accent-hover: #0b7a5d;
+  --accent-soft: #e2f3ed;
+  --accent-ink: #0a7356;
   --on-accent: #ffffff;
-  --danger: #d6453d;
+  --highlight: #b86e0a;
+  --highlight-soft: #fbf0de;
+  --danger: #c93c31;
 
-  /* Sidebar (dark in both themes, Evernote-style) */
-  --sb-bg: #1c1c1e;
-  --sb-text: #ececec;
-  --sb-muted: #9a9a9e;
-  --sb-hover: rgba(255, 255, 255, 0.06);
-  --sb-active: rgba(255, 255, 255, 0.11);
-  --sb-border: rgba(255, 255, 255, 0.08);
+  /* Sidebar: quiet tint in light mode */
+  --sb-bg: #f4f7f5;
+  --sb-text: #1d2a24;
+  --sb-muted: #66746e;
+  --sb-hover: rgba(20, 32, 27, 0.05);
+  --sb-active: #e2f0ea;
+  --sb-active-text: #0a7356;
+  --sb-border: #e3e9e6;
 
   --mood-1: #e0705f;
   --mood-2: #e8a04e;
@@ -68,38 +73,46 @@
   --mood-4: #6dbb7c;
   --mood-5: #2fa59c;
 
-  --priority-1: #4f86d9;
-  --priority-2: #e08a1e;
-  --priority-3: #d9483b;
+  --priority-urgent: #d23f33;
+  --priority-high: #dd8418;
+  --priority-low: #4a82d4;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.18);
+  --shadow-sm: 0 1px 2px rgba(16, 32, 26, 0.05);
+  --shadow-md: 0 1px 3px rgba(16, 32, 26, 0.06), 0 6px 20px rgba(16, 32, 26, 0.07);
+  --shadow-lg: 0 16px 48px rgba(16, 32, 26, 0.18);
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #1e1e20;
-  --bg-subtle: #19191b;
-  --surface: #252527;
-  --surface-2: #2c2c2f;
-  --hover: #29292c;
-  --text: #ededed;
-  --text-2: #bdbdbd;
-  --muted: #8c8c90;
-  --border: #2f2f32;
-  --border-strong: #3e3e42;
+  --bg: #111816;
+  --bg-subtle: #0d1311;
+  --surface: #17201d;
+  --surface-2: #1e2925;
+  --hover: #1c2622;
+  --text: #e6eeea;
+  --text-2: #b6c3bd;
+  --muted: #8a9993;
+  --border: #24302b;
+  --border-strong: #33413b;
 
-  --accent: #2ec45f;
-  --accent-hover: #44d473;
-  --accent-soft: rgba(46, 196, 95, 0.14);
-  --accent-ink: #5ad885;
-  --on-accent: #052b12;
+  --accent: #34c79a;
+  --accent-hover: #4fd6ab;
+  --accent-soft: rgba(52, 199, 154, 0.14);
+  --accent-ink: #5dd9b0;
+  --on-accent: #052a1d;
+  --highlight: #f0b257;
+  --highlight-soft: rgba(240, 178, 87, 0.14);
   --danger: #f06b60;
 
-  --sb-bg: #141416;
+  --sb-bg: #0d1311;
+  --sb-text: #e6eeea;
+  --sb-muted: #8a9993;
+  --sb-hover: rgba(255, 255, 255, 0.05);
+  --sb-active: rgba(52, 199, 154, 0.14);
+  --sb-active-text: #6fe0bb;
+  --sb-border: rgba(255, 255, 255, 0.07);
 
   --mood-1: #ec8576;
   --mood-2: #efb062;
@@ -107,9 +120,9 @@
   --mood-4: #7fcb8d;
   --mood-5: #48bdb3;
 
-  --priority-1: #74a3ec;
-  --priority-2: #f0a443;
-  --priority-3: #f06b60;
+  --priority-urgent: #f06b60;
+  --priority-high: #f0a443;
+  --priority-low: #74a3ec;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -496,7 +509,7 @@ button.chip.active:hover {
   gap: var(--s-4);
   padding: 10px 10px 10px var(--s-4);
   border-radius: var(--r-lg);
-  background: #232325;
+  background: #18221e;
   color: #f2f2f2;
   font-size: var(--fs-base);
   font-weight: 500;
@@ -514,7 +527,7 @@ button.chip.active:hover {
 
 .toast-action {
   font-weight: 700;
-  color: #4fd67b;
+  color: #5dd9b0;
 }
 
 .toast-action:hover {
@@ -547,5 +560,235 @@ button.chip.active:hover {
 @media (max-width: 560px) {
   .toast {
     width: calc(100% - var(--s-8));
+  }
+}
+
+/* ==========================================================================
+   Shared components added for ImpactMe
+   ========================================================================== */
+.btn.secondary {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  color: var(--text);
+}
+
+.btn.secondary:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.btn.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 88%, #000);
+}
+
+kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  box-shadow: inset 0 -1px 0 var(--border-strong);
+  font: 600 var(--fs-2xs) / 1 var(--font-ui);
+  color: var(--text-2);
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+/* Forms */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 420px;
+}
+
+.field label,
+.field-label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.field-error {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--danger);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.segment:hover {
+  color: var(--text);
+}
+
+.segment.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--border);
+}
+
+.callout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--bg-subtle);
+  box-shadow: inset 0 0 0 1px var(--border);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+.callout-meta {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Dialogs (native <dialog>) */
+.dialog {
+  width: min(560px, calc(100% - var(--s-8)));
+  max-height: calc(100dvh - var(--s-12));
+  padding: 0;
+  border: none;
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+
+.dialog[open] {
+  animation: dialog-in 0.18s var(--ease);
+}
+
+.dialog::backdrop {
+  background: rgba(8, 16, 13, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-5) var(--s-6) var(--s-6);
+}
+
+.dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-right: calc(var(--s-2) * -1);
+}
+
+.dialog-title {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.dialog-desc {
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.dialog-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+.dialog-foot > :last-child {
+  margin-left: auto;
+}
+
+.toast.error {
+  max-width: min(560px, calc(100% - var(--s-8)));
+  background: #3b1512;
+  color: #ffe9e6;
+}
+
+/* Shown when IndexedDB can't be opened at all */
+.startup-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  max-width: 520px;
+  margin: 15vh auto 0;
+  padding: 0 var(--s-5);
+}
+
+.startup-error h1 {
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.startup-error p {
+  color: var(--text-2);
+}
+
+.startup-error-detail {
+  font-size: var(--fs-sm);
+  color: var(--muted) !important;
+}
+
+@media (max-width: 560px) {
+  .dialog {
+    width: calc(100% - var(--s-4));
+  }
+
+  .dialog-body {
+    padding: var(--s-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

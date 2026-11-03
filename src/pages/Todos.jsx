@@ -1,49 +1,35 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import useLocalStorage from '../hooks/useLocalStorage.js'
+import { useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import TodoComposer from '../components/todos/TodoComposer.jsx'
 import TodoItem from '../components/todos/TodoItem.jsx'
 import TodoEditor from '../components/todos/TodoEditor.jsx'
-import Toast from '../components/Toast.jsx'
+import { showToast } from '../components/Toast.jsx'
 import { ChecklistIcon, ChevronIcon, SearchIcon } from '../components/icons.jsx'
-import { PRIORITIES, SORTS, VIEWS, matchesQuery, normalizeTodo } from '../lib/todos.js'
-
-const TOAST_MS = 5000
+import { tasks, updateSettings, useSettings, useTasks } from '../data/store.js'
+import { createTask } from '../data/models.js'
+import { PRIORITIES, SORTS, VIEWS, isDone, matchesQuery } from '../lib/todos.js'
 
 export default function Todos() {
   const { view: viewParam } = useParams()
   const navigate = useNavigate()
-  const location = useLocation()
-  const [stored, setTodos] = useLocalStorage('todos.items', [])
-  const [savedSort, setSort] = useLocalStorage('todos.sort', 'due')
-  const [showCompleted, setShowCompleted] = useLocalStorage('todos.showCompleted', true)
+  const todos = useTasks()
+  const { tasksSort: sort, tasksShowCompleted: showCompleted } = useSettings()
   const [query, setQuery] = useState('')
-  const [priorityFilter, setPriorityFilter] = useState('') // '' = any, else '0'–'3'
+  const [priorityFilter, setPriorityFilter] = useState('') // '' = any, else a priority value
   const [tagFilter, setTagFilter] = useState(null)
   const [editingId, setEditingId] = useState(null)
-  const [toast, setToast] = useState(null)
 
-  useEffect(() => {
-    if (!toast) return
-    const timer = setTimeout(() => setToast(null), TOAST_MS)
-    return () => clearTimeout(timer)
-  }, [toast])
-
-  // Guard against stale or hand-edited storage so a bad value can't crash the page.
-  const items = Array.isArray(stored) ? stored : []
-  const sort = SORTS[savedSort] ? savedSort : 'due'
   const view = VIEWS[viewParam] ? viewParam : 'all'
-  const setView = (key) => navigate(key === 'all' ? '/todos' : `/todos/${key}`)
+  const setView = (key) => navigate(key === 'all' ? '/tasks' : `/tasks/${key}`)
 
-  const todos = useMemo(() => items.map(normalizeTodo), [items])
   const allTags = useMemo(() => [...new Set(todos.flatMap((t) => t.tags))].sort(), [todos])
-  const active = todos.filter((t) => !t.done)
-  const completed = todos.filter((t) => t.done)
+  const active = todos.filter((t) => !isDone(t))
+  const completed = todos.filter(isDone)
   const overdueCount = active.filter(VIEWS.overdue.test).length
 
   const matches = (t) =>
     VIEWS[view].test(t) &&
-    (priorityFilter === '' || t.priority === Number(priorityFilter)) &&
+    (priorityFilter === '' || t.priority === priorityFilter) &&
     (!tagFilter || t.tags.includes(tagFilter)) &&
     matchesQuery(t, query)
 
@@ -53,46 +39,26 @@ export default function Todos() {
     .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
   const narrowed = Boolean(priorityFilter !== '' || tagFilter || query.trim())
 
-  function notify(message, undo) {
-    setToast({ id: Date.now(), message, undo })
-  }
-
-  function addTodo(fields) {
-    setTodos((cur) => [
-      ...(Array.isArray(cur) ? cur : []),
-      { ...fields, id: crypto.randomUUID(), done: false, createdAt: Date.now(), completedAt: null },
-    ])
-  }
-
-  function updateTodo(id, changes) {
-    setTodos((cur) => cur.map((t) => (t.id === id ? { ...t, ...changes } : t)))
-  }
-
   function toggleTodo(todo) {
-    if (todo.done) {
-      updateTodo(todo.id, { done: false, completedAt: null })
+    if (isDone(todo)) {
+      tasks.update(todo.id, { status: 'open', completedAt: null })
     } else {
-      updateTodo(todo.id, { done: true, completedAt: Date.now() })
-      notify('Task completed', () => updateTodo(todo.id, { done: false, completedAt: null }))
+      tasks.update(todo.id, { status: 'done', completedAt: Date.now() })
+      showToast('Task completed', { undo: () => tasks.update(todo.id, { status: 'open', completedAt: null }) })
     }
   }
 
   function deleteTodo(id) {
-    const index = items.findIndex((t) => t.id === id)
-    const removed = items[index]
-    setTodos((cur) => cur.filter((t) => t.id !== id))
+    const removed = tasks.remove(id)
     setEditingId(null)
-    notify('Task deleted', () =>
-      setTodos((cur) => [...cur.slice(0, index), removed, ...cur.slice(index)])
-    )
+    showToast('Task deleted', { undo: () => removed.forEach(tasks.put) })
   }
 
   function clearCompleted() {
-    const removed = items.filter((t) => t.done)
-    setTodos((cur) => cur.filter((t) => !t.done))
-    notify(`Cleared ${removed.length} completed ${removed.length === 1 ? 'task' : 'tasks'}`, () =>
-      setTodos((cur) => [...cur, ...removed])
-    )
+    const removed = tasks.remove(completed.map((t) => t.id))
+    showToast(`Cleared ${removed.length} completed ${removed.length === 1 ? 'task' : 'tasks'}`, {
+      undo: () => removed.forEach(tasks.put),
+    })
   }
 
   function clearFilters() {
@@ -109,7 +75,7 @@ export default function Todos() {
         todo={todo}
         knownTags={allTags}
         onSave={(updated) => {
-          updateTodo(todo.id, updated)
+          tasks.update(todo.id, updated)
           setEditingId(null)
         }}
         onCancel={() => setEditingId(null)}
@@ -140,7 +106,7 @@ export default function Todos() {
       <section className="page">
         <header className="page-head">
           <div>
-            <h1 className="page-title">{view === 'all' ? 'Tasks' : VIEWS[view].label}</h1>
+            <h1 className="page-title">{view === 'all' ? 'My Tasks' : VIEWS[view].label}</h1>
             <p className="page-sub">{summary}</p>
           </div>
           {todos.length > 0 && (
@@ -155,7 +121,7 @@ export default function Todos() {
           )}
         </header>
 
-        <TodoComposer onAdd={addTodo} focusKey={location.state?.focusComposer} />
+        <TodoComposer onAdd={(fields) => tasks.put(createTask(fields))} />
 
         {todos.length === 0 ? (
           <div className="todo-empty">
@@ -213,12 +179,11 @@ export default function Todos() {
                     {p.label} priority
                   </option>
                 ))}
-                <option value="0">No priority</option>
               </select>
               <select
                 className="select-inline"
                 value={sort}
-                onChange={(e) => setSort(e.target.value)}
+                onChange={(e) => updateSettings({ tasksSort: e.target.value })}
                 aria-label="Sort tasks"
               >
                 {Object.entries(SORTS).map(([key, { label }]) => (
@@ -266,7 +231,7 @@ export default function Todos() {
                 <div className="completed-head">
                   <button
                     className="completed-toggle"
-                    onClick={() => setShowCompleted(!showCompleted)}
+                    onClick={() => updateSettings({ tasksShowCompleted: !showCompleted })}
                     aria-expanded={showCompleted}
                   >
                     <ChevronIcon
@@ -292,18 +257,6 @@ export default function Todos() {
           </>
         )}
       </section>
-
-      {toast && (
-        <Toast
-          key={toast.id}
-          message={toast.message}
-          onUndo={() => {
-            toast.undo()
-            setToast(null)
-          }}
-          onClose={() => setToast(null)}
-        />
-      )}
     </div>
   )
 }

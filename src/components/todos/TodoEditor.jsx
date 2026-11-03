@@ -7,11 +7,11 @@ import { TrashIcon } from '../icons.jsx'
 export default function TodoEditor({ todo, knownTags, onSave, onCancel, onDelete }) {
   const [form, setForm] = useState(todo)
   const update = (field) => (value) => setForm((f) => ({ ...f, [field]: value }))
-  const canSave = Boolean(form.text.trim())
+  const canSave = Boolean(form.title.trim())
 
   function submit(e) {
     e.preventDefault()
-    if (canSave) onSave({ ...form, text: form.text.trim(), notes: form.notes.trim() })
+    if (canSave) onSave({ ...form, title: form.title.trim(), description: form.description.trim() })
   }
 
   function handleKeyDown(e) {
@@ -24,20 +24,22 @@ export default function TodoEditor({ todo, knownTags, onSave, onCancel, onDelete
       <form className="todo-editor" onSubmit={submit} onKeyDown={handleKeyDown}>
         <input
           className="bare editor-title"
-          value={form.text}
-          onChange={(e) => update('text')(e.target.value)}
+          value={form.title}
+          onChange={(e) => update('title')(e.target.value)}
           placeholder="Task name"
+          aria-label="Task name"
           autoFocus
         />
         <textarea
           className="bare editor-notes"
-          value={form.notes}
-          onChange={(e) => update('notes')(e.target.value)}
+          value={form.description}
+          onChange={(e) => update('description')(e.target.value)}
           placeholder="Add notes…"
+          aria-label="Notes"
           rows={2}
         />
         <div className="editor-options">
-          <DuePicker value={form.due} onChange={update('due')} />
+          <DuePicker value={form.dueDate} onChange={update('dueDate')} />
           <PriorityPicker value={form.priority} onChange={update('priority')} />
           <TagInput value={form.tags} onChange={update('tags')} suggestions={knownTags} />
         </div>

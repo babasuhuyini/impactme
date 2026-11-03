@@ -120,3 +120,79 @@ export const CheckIcon = (props) => (
     <path d="M20 6 9 17l-5-5" />
   </svg>
 )
+
+export const HomeIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M3 10.5 12 3l9 7.5" />
+    <path d="M5 9v11h14V9" />
+    <path d="M10 20v-6h4v6" />
+  </svg>
+)
+
+export const GearIcon = (props) => (
+  <svg {...base} {...props}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+  </svg>
+)
+
+export const MonitorIcon = (props) => (
+  <svg {...base} {...props}>
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M8 20h8M12 16v4" />
+  </svg>
+)
+
+export const DotsIcon = (props) => (
+  <svg {...base} {...props}>
+    <circle cx="5" cy="12" r="1.2" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+    <circle cx="19" cy="12" r="1.2" fill="currentColor" />
+  </svg>
+)
+
+export const DownloadIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+  </svg>
+)
+
+export const UploadIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M12 16V5M7 10l5-5 5 5M5 20h14" />
+  </svg>
+)
+
+export const ShieldIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M12 3 4 6v6c0 4.4 3.4 8 8 9 4.6-1 8-4.6 8-9V6z" />
+    <path d="m9 12 2 2 4-4" />
+  </svg>
+)
+
+export const FlameIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M12 3c.5 3 3 4.5 3 8a3 3 0 0 1-6 0c0-1 .3-1.8.8-2.5C8 9.5 6 11.6 6 14.5a6 6 0 0 0 12 0C18 9 13.5 6.5 12 3z" />
+  </svg>
+)
+
+export const ArrowRightIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M5 12h14M12 5l7 7-7 7" />
+  </svg>
+)
+
+// The ImpactMe mark: a day drawn as a ring, three quarters done, with you at the centre.
+export const BrandMark = ({ size = 24, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" {...props}>
+    <circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" strokeWidth="3.2" opacity="0.28" />
+    <path
+      d="M16 5A11 11 0 1 1 5 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3.2"
+      strokeLinecap="round"
+    />
+    <circle cx="16" cy="16" r="3.6" fill="currentColor" />
+  </svg>
+)

@@ -3,7 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import useJournal from '../hooks/useJournal.js'
 import EntryEditor from '../components/journal/EntryEditor.jsx'
 import MoodTrend from '../components/journal/MoodTrend.jsx'
+import { showToast } from '../components/Toast.jsx'
 import { BookIcon, PlusIcon, SearchIcon } from '../components/icons.jsx'
+import { journal } from '../data/store.js'
+import { formatTime } from '../lib/format.js'
 import {
   MOODS,
   computeStreak,
@@ -185,12 +188,7 @@ export default function Journal() {
                       </div>
                       <p className="entry-item-snippet">{snippet || 'No additional text'}</p>
                       <div className="entry-item-meta">
-                        <span>
-                          {new Date(entry.createdAt).toLocaleTimeString(undefined, {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
-                        </span>
+                        <span>{formatTime(entry.createdAt)}</span>
                         {entry.tags.slice(0, 3).map((tag) => (
                           <span key={tag} className="entry-item-tag">
                             #{tag}
@@ -214,8 +212,9 @@ export default function Journal() {
             knownTags={allTags}
             onChange={(patch) => update(selected.id, patch)}
             onDelete={() => {
-              remove(selected.id)
+              const removed = remove(selected.id)
               navigate('/journal')
+              showToast('Entry deleted', { undo: () => removed.forEach(journal.put) })
             }}
             onBack={() => navigate('/journal')}
           />

@@ -392,6 +392,20 @@
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
+  transition: background 0.2s;
+}
+
+.toolbar-meta.saving .saved-dot {
+  background: var(--muted);
+}
+
+.toolbar-meta.error {
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.toolbar-meta.error .saved-dot {
+  background: var(--danger);
 }
 
 .toolbar-actions {

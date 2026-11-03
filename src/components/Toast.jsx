@@ -1,15 +1,53 @@
+import { useEffect, useSyncExternalStore } from 'react'
 import { XIcon } from './icons.jsx'
 
-export default function Toast({ message, onUndo, onClose }) {
+// One toast at a time, shown from anywhere: showToast('Task deleted', { undo }).
+let current = null
+const listeners = new Set()
+const set = (toast) => {
+  current = toast
+  listeners.forEach((notify) => notify())
+}
+const subscribe = (notify) => {
+  listeners.add(notify)
+  return () => listeners.delete(notify)
+}
+
+export function showToast(message, { undo, tone = 'default', duration = 5000 } = {}) {
+  set({ id: Date.now() + Math.random(), message, undo, tone, duration })
+}
+
+export const dismissToast = () => set(null)
+
+export default function ToastHost() {
+  const toast = useSyncExternalStore(subscribe, () => current)
+
+  useEffect(() => {
+    if (!toast || !toast.duration) return
+    const timer = setTimeout(() => current === toast && set(null), toast.duration)
+    return () => clearTimeout(timer)
+  }, [toast])
+
+  if (!toast) return null
   return (
-    <div className="toast" role="status">
-      <span>{message}</span>
-      {onUndo && (
-        <button className="toast-action" onClick={onUndo}>
+    <div
+      key={toast.id}
+      className={toast.tone === 'error' ? 'toast error' : 'toast'}
+      role={toast.tone === 'error' ? 'alert' : 'status'}
+    >
+      <span>{toast.message}</span>
+      {toast.undo && (
+        <button
+          className="toast-action"
+          onClick={() => {
+            toast.undo()
+            set(null)
+          }}
+        >
           Undo
         </button>
       )}
-      <button className="toast-close" onClick={onClose} aria-label="Dismiss">
+      <button className="toast-close" onClick={() => set(null)} aria-label="Dismiss">
         <XIcon width={14} height={14} />
       </button>
     </div>

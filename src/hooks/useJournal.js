@@ -1,44 +1,33 @@
-import { useCallback, useMemo } from 'react'
-import useLocalStorage from './useLocalStorage.js'
-import { createEntry, isEmptyEntry, normalizeEntry } from '../lib/journal.js'
+import { useMemo } from 'react'
+import { journal, useJournalEntries } from '../data/store.js'
+import { createEntry } from '../data/models.js'
+import { isEmptyEntry } from '../lib/journal.js'
 
-const asArray = (value) => (Array.isArray(value) ? value : [])
 const byNewest = (a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt
 
+// Ids of entries this tab created, so pruning never touches a blank entry
+// another open tab has just started.
+const createdHere = new Set()
+
+const create = (fields) => {
+  const entry = journal.put(createEntry(fields))
+  createdHere.add(entry.id)
+  return entry
+}
+const update = (id, patch) => journal.update(id, patch)
+const remove = (id) => journal.remove(id)
+
+// Entries are created blank on "New"; drop any left untouched, except the one open now.
+const pruneEmpty = (keepId) =>
+  journal.remove(
+    journal
+      .all()
+      .filter((e) => e.id !== keepId && createdHere.has(e.id) && isEmptyEntry(e))
+      .map((e) => e.id)
+  )
+
 export default function useJournal() {
-  const [stored, setStored] = useLocalStorage('journal.entries', [])
-
-  const entries = useMemo(() => asArray(stored).map(normalizeEntry).sort(byNewest), [stored])
-
-  const create = useCallback(() => {
-    const entry = createEntry()
-    setStored((cur) => [entry, ...asArray(cur)])
-    return entry
-  }, [setStored])
-
-  const update = useCallback(
-    (id, patch) =>
-      setStored((cur) =>
-        asArray(cur).map((e) => (e.id === id ? { ...e, ...patch, updatedAt: Date.now() } : e))
-      ),
-    [setStored]
-  )
-
-  const remove = useCallback(
-    (id) => setStored((cur) => asArray(cur).filter((e) => e.id !== id)),
-    [setStored]
-  )
-
-  // Entries are created blank on "New"; drop any left untouched, except the one open now.
-  const pruneEmpty = useCallback(
-    (keepId) =>
-      setStored((cur) => {
-        const list = asArray(cur)
-        const next = list.filter((e) => e.id === keepId || !isEmptyEntry(normalizeEntry(e)))
-        return next.length === list.length ? cur : next
-      }),
-    [setStored]
-  )
-
+  const stored = useJournalEntries()
+  const entries = useMemo(() => [...stored].sort(byNewest), [stored])
   return { entries, create, update, remove, pruneEmpty }
 }

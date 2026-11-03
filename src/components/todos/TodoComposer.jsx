@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import DuePicker from './DuePicker.jsx'
 import PriorityPicker from './PriorityPicker.jsx'
 import { PlusIcon } from '../icons.jsx'
@@ -6,21 +6,16 @@ import { extractTags } from '../../lib/todos.js'
 
 const PLACEHOLDER = 'Add a task… use #tags to organise'
 
-export default function TodoComposer({ onAdd, focusKey }) {
+export default function TodoComposer({ onAdd }) {
   const [text, setText] = useState('')
-  const [due, setDue] = useState(null)
-  const [priority, setPriority] = useState(0)
+  const [dueDate, setDueDate] = useState(null)
+  const [priority, setPriority] = useState('normal')
   const [nudge, setNudge] = useState(false)
   const [needsText, setNeedsText] = useState(false)
   const inputRef = useRef(null)
 
-  // "New → Task" in the sidebar passes a fresh key to pull focus here.
-  useEffect(() => {
-    if (focusKey) inputRef.current?.focus()
-  }, [focusKey])
-
   // Options appear once there's something to attach them to.
-  const showOptions = Boolean(text.trim() || due || priority)
+  const showOptions = Boolean(text.trim() || dueDate || priority !== 'normal')
 
   // After picking a date or priority, return to the text so Enter adds the task.
   const andRefocus = (setter) => (value) => {
@@ -30,8 +25,8 @@ export default function TodoComposer({ onAdd, focusKey }) {
 
   function reset() {
     setText('')
-    setDue(null)
-    setPriority(0)
+    setDueDate(null)
+    setPriority('normal')
   }
 
   function submit(e) {
@@ -43,7 +38,7 @@ export default function TodoComposer({ onAdd, focusKey }) {
       inputRef.current?.focus()
       return
     }
-    onAdd({ ...extractTags(text), notes: '', due, priority })
+    onAdd({ ...extractTags(text), dueDate, priority })
     reset()
     inputRef.current?.focus()
   }
@@ -74,7 +69,7 @@ export default function TodoComposer({ onAdd, focusKey }) {
       </div>
       {showOptions && (
         <div className="composer-options">
-          <DuePicker value={due} onChange={andRefocus(setDue)} />
+          <DuePicker value={dueDate} onChange={andRefocus(setDueDate)} />
           <PriorityPicker value={priority} onChange={andRefocus(setPriority)} />
         </div>
       )}

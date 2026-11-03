@@ -26,24 +26,6 @@ export function formatDayHeading(key) {
   return date.toLocaleDateString(undefined, opts)
 }
 
-export function blankEntry() {
-  return {
-    id: null,
-    date: toDateKey(),
-    title: '',
-    body: '',
-    mood: null,
-    energy: null,
-    gratitude: '',
-    tags: [],
-  }
-}
-
-export function createEntry() {
-  const now = Date.now()
-  return { ...blankEntry(), id: crypto.randomUUID(), createdAt: now, updatedAt: now }
-}
-
 export function entrySnippet(entry, length = 160) {
   return entry.body.replace(/\s+/g, ' ').trim().slice(0, length)
 }
@@ -51,17 +33,6 @@ export function entrySnippet(entry, length = 160) {
 export function entryTitle(entry) {
   const mood = getMood(entry.mood)
   return entry.title || (mood ? `Feeling ${mood.label.toLowerCase()}` : '')
-}
-
-// Early entries were { id, text, createdAt }; fill in the fields added since.
-export function normalizeEntry({ text, ...entry }) {
-  return {
-    ...blankEntry(),
-    ...entry,
-    body: entry.body ?? text ?? '',
-    date: entry.date ?? toDateKey(new Date(entry.createdAt ?? Date.now())),
-    tags: entry.tags ?? [],
-  }
 }
 
 export function isEmptyEntry(entry) {

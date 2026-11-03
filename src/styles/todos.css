@@ -1,10 +1,10 @@
 /* ==========================================================================
    Tasks
    ========================================================================== */
-[data-priority='0'] { --p: color-mix(in srgb, var(--muted) 70%, transparent); }
-[data-priority='1'] { --p: var(--priority-1); }
-[data-priority='2'] { --p: var(--priority-2); }
-[data-priority='3'] { --p: var(--priority-3); }
+[data-priority='normal'] { --p: color-mix(in srgb, var(--muted) 70%, transparent); }
+[data-priority='low'] { --p: var(--priority-low); }
+[data-priority='high'] { --p: var(--priority-high); }
+[data-priority='urgent'] { --p: var(--priority-urgent); }
 
 .page-scroll {
   flex: 1;
@@ -236,8 +236,8 @@
 
 .tab-count.alert,
 .view-tab.active .tab-count.alert {
-  background: color-mix(in srgb, var(--priority-3) 14%, transparent);
-  color: var(--priority-3);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
 }
 
 .list-toolbar {
@@ -367,7 +367,7 @@
 
 .due-badge.overdue {
   font-weight: 700;
-  color: var(--priority-3);
+  color: var(--danger);
 }
 
 .due-badge.today {

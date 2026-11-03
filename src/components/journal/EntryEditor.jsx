@@ -5,10 +5,12 @@ import TagInput from '../TagInput.jsx'
 import { ArrowLeftIcon, CalendarIcon, TrashIcon } from '../icons.jsx'
 import { formatRelative } from '../../lib/dates.js'
 import { countWords, isEmptyEntry, toDateKey } from '../../lib/journal.js'
+import { useSaveStatus } from '../../data/store.js'
 
-// Edits an entry in place; every change is saved immediately, like a note app.
+// Edits an entry in place; every change is saved automatically, like a note app.
 export default function EntryEditor({ entry, knownTags, onChange, onDelete, onBack }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const saveStatus = useSaveStatus()
   const titleRef = useRef(null)
   const bodyRef = useRef(null)
 
@@ -44,9 +46,13 @@ export default function EntryEditor({ entry, knownTags, onChange, onDelete, onBa
             aria-label="Entry date"
           />
         </label>
-        <span className="toolbar-meta">
+        <span className={`toolbar-meta ${saveStatus}`} aria-live="polite">
           <span className="saved-dot" />
-          Saved · edited {formatRelative(entry.updatedAt ?? entry.createdAt)}
+          {saveStatus === 'saving'
+            ? 'Saving…'
+            : saveStatus === 'error'
+              ? 'Not saved'
+              : `Saved · edited ${formatRelative(entry.updatedAt)}`}
         </span>
         <div className="toolbar-actions">
           {confirmingDelete ? (
