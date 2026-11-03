@@ -1,7 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import Dialog from '../components/Dialog.jsx'
 import { showToast } from '../components/Toast.jsx'
-import { BrandMark, DownloadIcon, MonitorIcon, MoonIcon, ShieldIcon, SunIcon, UploadIcon } from '../components/icons.jsx'
+import {
+  AlertIcon,
+  BellIcon,
+  BrandMark,
+  CheckIcon,
+  DownloadIcon,
+  InstallIcon,
+  MonitorIcon,
+  MoonIcon,
+  ShieldIcon,
+  SunIcon,
+  UploadIcon,
+} from '../components/icons.jsx'
 import useTheme from '../hooks/useTheme.js'
 import {
   getSafetySnapshot,
@@ -18,6 +30,15 @@ import { backupFilename, createBackup, downloadFile, normalizeBackupData, parseB
 import { formatBytes } from '../lib/format.js'
 import { resolveWeekStart } from '../lib/calendar.js'
 import { formatRelative } from '../lib/dates.js'
+import { REMINDER_PRESETS, offsetLabel } from '../lib/reminders.js'
+import {
+  isAppleMobile,
+  isStandalone,
+  requestNotificationPermission,
+  sendTestNotification,
+  useNotificationPermission,
+} from '../reminders/notifications.js'
+import { applyUpdate, checkForUpdate, promptInstall, usePWA } from '../pwa.js'
 
 const THEMES = [
   ['system', 'System', MonitorIcon],
@@ -49,6 +70,8 @@ export default function Settings() {
         <ProfileSection />
         <AppearanceSection />
         <CalendarSection />
+        <NotificationsSection />
+        <AppSection />
         <DataSection />
         <ShortcutsSection />
         <AboutSection />
@@ -171,6 +194,284 @@ function CalendarSection() {
           onChange={(value) => updateSettings({ calendarView: value })}
         />
         <p className="field-hint">On a phone, Week opens as Day so it stays readable.</p>
+      </div>
+    </Section>
+  )
+}
+
+function StatusRow({ icon: Icon, tone, title, children, action }) {
+  return (
+    <div className={tone ? `status-row ${tone}` : 'status-row'}>
+      <Icon width={18} height={18} />
+      <div>
+        <strong>{title}</strong>
+        {children}
+      </div>
+      {action}
+    </div>
+  )
+}
+
+function NotificationsSection() {
+  const settings = useSettings()
+  const [permission, setPermission] = useNotificationPermission()
+  const [busy, setBusy] = useState(false)
+  const appleNeedsInstall = permission === 'unsupported' && isAppleMobile() && !isStandalone()
+
+  async function enable() {
+    setBusy(true)
+    try {
+      const result = await requestNotificationPermission()
+      setPermission(result)
+      if (result === 'granted') {
+        // Make new tasks with a time remind you, unless you've already chosen otherwise.
+        if (settings.defaultReminder == null) updateSettings({ defaultReminder: 0 })
+        showToast('Notifications are on')
+      } else if (result === 'denied') {
+        showToast('Notifications were blocked. Reminders will appear inside ImpactMe instead.')
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function test() {
+    try {
+      await sendTestNotification()
+      showToast('Test sent. Not seeing it? Check your device’s notification and Do Not Disturb settings.', {
+        duration: 8000,
+      })
+    } catch (error) {
+      console.error(error)
+      showToast('The test notification couldn’t be shown.', { tone: 'error' })
+    }
+  }
+
+  let status
+  if (appleNeedsInstall) {
+    status = (
+      <StatusRow icon={InstallIcon} title="Add ImpactMe to your Home Screen first">
+        <p>
+          On iPhone and iPad, notifications work once ImpactMe is installed: tap Share, then Add to Home Screen, and
+          open it from there. Until then, reminders appear inside ImpactMe while it’s open.
+        </p>
+      </StatusRow>
+    )
+  } else if (permission === 'unsupported') {
+    status = (
+      <StatusRow icon={AlertIcon} tone="warn" title="This browser can’t show notifications">
+        <p>Reminders will appear inside ImpactMe while it’s open.</p>
+      </StatusRow>
+    )
+  } else if (permission === 'granted') {
+    status = (
+      <StatusRow
+        icon={CheckIcon}
+        tone="ok"
+        title="Notifications are on"
+        action={
+          <button className="btn secondary sm" onClick={test}>
+            Send a test
+          </button>
+        }
+      >
+        <p>Reminders appear as notifications on this device, with buttons to mark done or snooze.</p>
+      </StatusRow>
+    )
+  } else if (permission === 'denied') {
+    status = (
+      <StatusRow icon={AlertIcon} tone="warn" title="Notifications are blocked for ImpactMe">
+        <p>
+          To allow them, click the icon at the left of the address bar, open the site’s permissions, and set
+          Notifications to Allow. Until then, reminders appear inside ImpactMe while it’s open.
+        </p>
+      </StatusRow>
+    )
+  } else {
+    status = (
+      <StatusRow
+        icon={BellIcon}
+        title="Notifications are off"
+        action={
+          <button className="btn primary sm" onClick={enable} disabled={busy}>
+            Enable notifications
+          </button>
+        }
+      >
+        <p>
+          Your browser will ask whether ImpactMe may show notifications. Without them, reminders appear inside
+          ImpactMe while it’s open.
+        </p>
+      </StatusRow>
+    )
+  }
+
+  return (
+    <Section title="Reminders & notifications" description="Get reminded when tasks are due.">
+      {status}
+
+      <label className="switch-row">
+        <input
+          type="checkbox"
+          className="switch"
+          checked={settings.remindersEnabled}
+          onChange={(e) => updateSettings({ remindersEnabled: e.target.checked })}
+        />
+        <span>
+          <strong>Send reminders</strong>
+          Turn off to pause all reminders without removing them from your tasks.
+        </span>
+      </label>
+
+      <div className="field">
+        <label htmlFor="settings-default-reminder">Default reminder for new tasks with a time</label>
+        <select
+          id="settings-default-reminder"
+          className="input settings-select"
+          value={settings.defaultReminder ?? ''}
+          onChange={(e) => updateSettings({ defaultReminder: e.target.value === '' ? null : Number(e.target.value) })}
+        >
+          <option value="">None</option>
+          {REMINDER_PRESETS.map((m) => (
+            <option key={m} value={m}>
+              {offsetLabel(m)}
+            </option>
+          ))}
+        </select>
+        <p className="field-hint">You can add, change or remove reminders on any task.</p>
+      </div>
+
+      <div className="field">
+        <label htmlFor="settings-all-day">Tasks without a time remind you at</label>
+        <input
+          id="settings-all-day"
+          type="time"
+          className="input settings-select"
+          value={settings.allDayReminderTime}
+          onChange={(e) => e.target.value && updateSettings({ allDayReminderTime: e.target.value })}
+        />
+      </div>
+
+      <details className="explainer">
+        <summary>When will reminders arrive?</summary>
+        <ul>
+          <li>
+            <strong>While ImpactMe is open</strong> (in a tab, minimised, behind other windows, or as an installed
+            app), reminders arrive on time, at most about a minute late.
+          </li>
+          <li>
+            <strong>If your browser is closed or your device is off or asleep,</strong> a reminder can’t arrive at
+            that moment. ImpactMe shows what you missed in the last 24 hours as soon as you open it again.
+          </li>
+          <li>
+            <strong>Installed in Chrome or Edge,</strong> ImpactMe may also check in the background now and then. The
+            browser decides when, so don’t count on it for exact times.
+          </li>
+          <li>
+            <strong>Snooze</strong> brings a reminder back after 10 or 30 minutes if ImpactMe is open then, or as soon
+            as you next open it.
+          </li>
+          <li>
+            Each reminder is sent once, however many tabs are open. Completing, deleting or moving a task clears its
+            reminder.
+          </li>
+          <li>Do Not Disturb, Focus modes and battery savers can hide or delay notifications.</li>
+          <li>
+            Reminders that arrive while the browser is completely closed would need a push server. ImpactMe doesn’t
+            use one, so your tasks never leave this device.
+          </li>
+        </ul>
+      </details>
+    </Section>
+  )
+}
+
+function installHelp() {
+  const ua = navigator.userAgent
+  if (isAppleMobile()) return 'In Safari, tap Share, then Add to Home Screen.'
+  if (/Android/i.test(ua)) return 'Open your browser’s menu and choose Install app or Add to Home screen.'
+  if (/Firefox/i.test(ua)) return 'Firefox can’t install websites as apps; Chrome, Edge or Safari can.'
+  if (/Safari/i.test(ua) && !/Chrome|Edg/i.test(ua)) return 'In Safari, choose File, then Add to Dock.'
+  return 'Use the install icon at the right of the address bar, or your browser’s menu (Apps, then Install ImpactMe).'
+}
+
+function AppSection() {
+  const pwa = usePWA()
+  const [checking, setChecking] = useState(false)
+  const installed = pwa.installed || isStandalone()
+  const offlineCapable = 'serviceWorker' in navigator
+
+  async function install() {
+    if (await promptInstall()) showToast('ImpactMe is installed')
+  }
+
+  async function check() {
+    setChecking(true)
+    try {
+      const result = await checkForUpdate()
+      if (result === 'latest') showToast('You have the latest version')
+      else if (result === 'offline') showToast('You’re offline. Try again when you’re connected.')
+      else if (result === 'unavailable') showToast('Updates arrive automatically when you reload ImpactMe.')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  return (
+    <Section title="App & offline" description="Install ImpactMe and use it without a connection.">
+      {installed ? (
+        <StatusRow icon={CheckIcon} tone="ok" title="Installed">
+          <p>ImpactMe is installed on this device and opens in its own window.</p>
+        </StatusRow>
+      ) : (
+        <StatusRow
+          icon={InstallIcon}
+          title="Install ImpactMe"
+          action={
+            pwa.installPrompt && (
+              <button className="btn primary sm" onClick={install}>
+                Install
+              </button>
+            )
+          }
+        >
+          <p>
+            Open it like any other app, from your home screen, dock or Start menu.{' '}
+            {!pwa.installPrompt && installHelp()}
+          </p>
+        </StatusRow>
+      )}
+
+      {!offlineCapable ? (
+        <StatusRow icon={AlertIcon} tone="warn" title="Offline use isn’t available in this browser">
+          <p>Your data is still saved on this device, but the app itself needs a connection to open.</p>
+        </StatusRow>
+      ) : pwa.offlineReady ? (
+        <StatusRow icon={CheckIcon} tone="ok" title="Works offline">
+          <p>ImpactMe and everything you’ve saved open without an internet connection.</p>
+        </StatusRow>
+      ) : (
+        <StatusRow icon={ShieldIcon} title="Getting ready to work offline">
+          <p>ImpactMe is saving itself on this device. This takes a moment on the first visit.</p>
+        </StatusRow>
+      )}
+
+      <div className="update-row">
+        <span>
+          Version {__APP_VERSION__}
+          {pwa.updateReady && ' · a new version is ready'}
+        </span>
+        {pwa.updateReady ? (
+          <button className="btn primary sm" onClick={applyUpdate}>
+            Update now
+          </button>
+        ) : (
+          offlineCapable && (
+            <button className="btn secondary sm" onClick={check} disabled={checking}>
+              {checking ? 'Checking…' : 'Check for updates'}
+            </button>
+          )
+        )}
       </div>
     </Section>
   )

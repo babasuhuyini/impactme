@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { showToast } from '../components/Toast.jsx'
 import {
   ArrowRightIcon,
+  BellIcon,
   BookIcon,
   CheckIcon,
   ChecklistIcon,
@@ -17,7 +18,7 @@ import { updateSettings, useSettings, useTasks } from '../data/store.js'
 import { addDays, toDateKey } from '../lib/dates.js'
 import { dailyPrompt, formatLongDate, formatTime, formatTimeRange, greeting } from '../lib/format.js'
 import { MOODS, computeStreak, entrySnippet, entryTitle, formatDayHeading, getMood } from '../lib/journal.js'
-import { SORTS, bySchedule, formatDue, getPriority, isBlock, isDone, isOpenTask } from '../lib/todos.js'
+import { SORTS, bySchedule, formatDue, getPriority, isBlock, isDone, isOpenTask, reminderCount } from '../lib/todos.js'
 import { openTask } from '../components/tasks/editorStore.js'
 import { completeTask } from '../data/actions.js'
 
@@ -215,6 +216,12 @@ function DashTask({ task, showDue }) {
         {task.recurrence && (
           <span className="meta-item" title="Repeats">
             <RepeatIcon width={13} height={13} />
+          </span>
+        )}
+        {task.reminders.length > 0 && (
+          <span className="meta-item" title={reminderCount(task)}>
+            <BellIcon width={13} height={13} />
+            <span className="sr-only">{reminderCount(task)}</span>
           </span>
         )}
         {!block && task.priority !== 'normal' && (

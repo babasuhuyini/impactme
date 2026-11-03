@@ -4,6 +4,7 @@
 
 import { toDateKey } from '../lib/dates.js'
 import { normalizeRule } from '../lib/recurrence.js'
+import { DEFAULT_ALL_DAY_TIME, REMINDER_PRESETS, normalizeReminders } from '../lib/reminders.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -68,7 +69,7 @@ export function normalizeTask(raw) {
     category: str(raw.category).trim().slice(0, 40),
     tags: tagList(raw.tags),
     subtasks: subtaskList(raw.subtasks),
-    reminders: Array.isArray(raw.reminders) ? raw.reminders : [],
+    reminders: normalizeReminders(raw.reminders),
     // A repeat needs a date to count from.
     recurrence: dueDate ? normalizeRule(raw.recurrence, dueDate) : null,
     // 'block' is a time block on the calendar (lunch, focus time) rather than something to tick off.
@@ -163,6 +164,11 @@ export const DEFAULT_SETTINGS = {
   tasksSort: 'due',
   tasksShowCompleted: true,
   lastBackupAt: null,
+  remindersEnabled: true,
+  // Added to new tasks that have a time: minutes before, or null for none.
+  defaultReminder: null,
+  // When reminders fire for tasks with a date but no time.
+  allDayReminderTime: DEFAULT_ALL_DAY_TIME,
 }
 
 const oneOf = (value, options, fallback) => (options.includes(value) ? value : fallback)
@@ -180,6 +186,9 @@ export function normalizeSettings(raw) {
     tasksSort: oneOf(s.tasksSort, ['due', 'priority', 'newest', 'manual'], d.tasksSort),
     tasksShowCompleted: typeof s.tasksShowCompleted === 'boolean' ? s.tasksShowCompleted : d.tasksShowCompleted,
     lastBackupAt: num(s.lastBackupAt, null),
+    remindersEnabled: typeof s.remindersEnabled === 'boolean' ? s.remindersEnabled : d.remindersEnabled,
+    defaultReminder: REMINDER_PRESETS.includes(s.defaultReminder) ? s.defaultReminder : d.defaultReminder,
+    allDayReminderTime: time(s.allDayReminderTime) ?? d.allDayReminderTime,
   }
 }
 

@@ -1,51 +1,32 @@
 // Task operations shared by every screen. Each returns an undo function where
 // undoing makes sense, so callers can offer "Undo" in a toast.
 
-import { tasks, projects } from './store.js'
+import { getSettings, tasks, projects } from './store.js'
 import { createProject, createTask, newId } from './models.js'
+import { planCompletion } from './completion.js'
 import { toDateKey } from '../lib/dates.js'
-import { nextOccurrence } from '../lib/recurrence.js'
+import { currentBlockDate, newReminder } from '../lib/reminders.js'
 
-export const addTask = (fields) => tasks.put(createTask({ order: Date.now(), ...fields }))
+// New tasks with a time get the default reminder from Settings, unless the
+// caller chose reminders itself (the task editor always does).
+export function addTask(fields) {
+  const { defaultReminder } = getSettings()
+  const reminders =
+    fields.reminders ?? (fields.startTime && defaultReminder != null ? [newReminder({ minutes: defaultReminder })] : [])
+  return tasks.put(createTask({ order: Date.now(), ...fields, reminders }))
+}
 
-// Completing a repeating task keeps a completed copy (so history and insights
-// count every occurrence) and moves the task itself on to its next date.
-// When the series has ended, the task itself is completed.
+// See planCompletion: a repeating task keeps a completed copy and moves on to its next date.
 export function completeTask(task, now = Date.now()) {
   const before = tasks.get(task.id)
   if (!before || before.status === 'done') return () => {}
-
-  if (before.recurrence && before.dueDate) {
-    const rule = before.recurrence
-    const next = nextOccurrence(rule, before.dueDate, toDateKey(new Date(now)))
-    const copy = tasks.put({
-      ...before,
-      id: newId(),
-      status: 'done',
-      completedAt: now,
-      recurrence: null,
-      seriesId: before.id,
-      createdAt: now,
-      updatedAt: now,
-    })
-    const advancedRule = { ...rule, completed: rule.completed + 1 }
-    if (next) {
-      tasks.update(before.id, {
-        dueDate: next,
-        recurrence: advancedRule,
-        subtasks: before.subtasks.map((s) => ({ ...s, done: false })),
-      })
-    } else {
-      tasks.update(before.id, { status: 'done', completedAt: now, recurrence: advancedRule })
-    }
-    return () => {
-      tasks.remove(copy.id)
-      tasks.put(before)
-    }
+  const { copy, updated } = planCompletion(before, now)
+  if (copy) tasks.put(copy)
+  tasks.put(updated)
+  return () => {
+    if (copy) tasks.remove(copy.id)
+    tasks.put(before)
   }
-
-  tasks.update(before.id, { status: 'done', completedAt: now })
-  return () => tasks.put(before)
 }
 
 export function reopenTask(task) {
@@ -117,11 +98,12 @@ export function deleteProject(id) {
 }
 
 // Time blocks aren't ticked off, so a repeating block (e.g. lunch every weekday)
-// is moved on to its next date once its day has passed.
+// is moved on to its next date once its day has passed. This isn't an edit by
+// you, so the block keeps its last-edited time (a reminder you missed while the
+// app was closed can still be shown).
 export function rollForwardBlocks(today = toDateKey()) {
   for (const task of tasks.all()) {
-    if (task.kind !== 'block' || !task.recurrence || !task.dueDate || task.dueDate >= today) continue
-    const next = nextOccurrence({ ...task.recurrence, count: null }, task.dueDate, today)
-    if (next && (!task.recurrence.endsOn || next <= task.recurrence.endsOn)) tasks.update(task.id, { dueDate: next })
+    const next = currentBlockDate(task, today)
+    if (next !== task.dueDate) tasks.put({ ...task, dueDate: next })
   }
 }

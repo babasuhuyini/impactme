@@ -86,3 +86,6 @@ export function matchesQuery(task, query) {
 
 export const durationMinutes = (task) =>
   task.startTime && task.endTime ? toMinutes(task.endTime) - toMinutes(task.startTime) : null
+
+// "2 reminders", for the bell shown on tasks that have them.
+export const reminderCount = (task) => `${task.reminders.length} ${task.reminders.length === 1 ? 'reminder' : 'reminders'}`

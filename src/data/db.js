@@ -16,3 +16,11 @@ db.version(2).stores({
   tasks: 'id, status, dueDate, updatedAt, projectId, seriesId',
   projects: 'id, order',
 })
+
+// Phase 3: reminders. `reminderLog` records each reminder once it's been sent,
+// so it's never sent twice, even with several tabs open or by the service
+// worker; `snoozes` holds snoozed reminders, one per task.
+db.version(3).stores({
+  reminderLog: 'key, at',
+  snoozes: 'taskId, at',
+})

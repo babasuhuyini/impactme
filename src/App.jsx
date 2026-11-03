@@ -3,8 +3,10 @@ import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 're
 import Sidebar from './components/Sidebar.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import QuickAdd from './components/QuickAdd.jsx'
-import ToastHost from './components/Toast.jsx'
+import ReminderTray from './components/ReminderTray.jsx'
+import ToastHost, { showToast } from './components/Toast.jsx'
 import TaskEditorHost from './components/tasks/TaskEditor.jsx'
+import { openTask } from './components/tasks/editorStore.js'
 import Calendar from './pages/Calendar.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Journal from './pages/Journal.jsx'
@@ -12,6 +14,8 @@ import Todos from './pages/Todos.jsx'
 import Settings from './pages/Settings.jsx'
 import useJournal from './hooks/useJournal.js'
 import { rollForwardBlocks } from './data/actions.js'
+import { tasks } from './data/store.js'
+import { startReminders } from './reminders/scheduler.js'
 import { BrandMark, PlusIcon } from './components/icons.jsx'
 
 const phoneQuery = matchMedia('(max-width: 860px)')
@@ -31,7 +35,7 @@ function LegacyTodos() {
 export default function App() {
   const [navOpen, setNavOpen] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const navigate = useNavigate()
   const { create } = useJournal()
   const writing = /^\/journal\/.+/.test(pathname)
@@ -43,10 +47,26 @@ export default function App() {
   // Keep repeating time blocks on their current date, now and whenever the app comes back into view.
   useEffect(() => {
     rollForwardBlocks()
+    startReminders()
     const onVisible = () => document.visibilityState === 'visible' && rollForwardBlocks()
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
+
+  // Clicking a reminder notification opens its task: /?task=<id>.
+  useEffect(() => {
+    const id = new URLSearchParams(search).get('task')
+    if (!id) return
+    navigate(pathname, { replace: true })
+    if (tasks.get(id)) openTask(id)
+    else showToast('That task has been deleted.')
+  }, [search, pathname, navigate])
+
+  useEffect(() => {
+    const onMessage = ({ data }) => data?.type === 'open' && navigate(data.hash.replace(/^#/, ''))
+    navigator.serviceWorker?.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker?.removeEventListener('message', onMessage)
+  }, [navigate])
 
   const newEntry = () => {
     setQuickAddOpen(false)
@@ -111,6 +131,7 @@ export default function App() {
 
       <QuickAdd open={quickAddOpen} onClose={() => setQuickAddOpen(false)} onWriteJournal={newEntry} />
       <TaskEditorHost />
+      <ReminderTray />
       <ToastHost />
     </div>
   )

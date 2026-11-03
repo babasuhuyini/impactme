@@ -1,7 +1,8 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { XIcon } from './icons.jsx'
 
-// One toast at a time, shown from anywhere: showToast('Task deleted', { undo }).
+// One toast at a time, shown from anywhere: showToast('Task deleted', { undo }),
+// or with any button: showToast('…', { action: { label: 'Update', onClick } }).
 let current = null
 const listeners = new Set()
 const set = (toast) => {
@@ -13,8 +14,8 @@ const subscribe = (notify) => {
   return () => listeners.delete(notify)
 }
 
-export function showToast(message, { undo, tone = 'default', duration = 5000 } = {}) {
-  set({ id: Date.now() + Math.random(), message, undo, tone, duration })
+export function showToast(message, { undo, action, tone = 'default', duration = 5000 } = {}) {
+  set({ id: Date.now() + Math.random(), message, undo, action, tone, duration })
 }
 
 export const dismissToast = () => set(null)
@@ -45,6 +46,17 @@ export default function ToastHost() {
           }}
         >
           Undo
+        </button>
+      )}
+      {toast.action && (
+        <button
+          className="toast-action"
+          onClick={() => {
+            toast.action.onClick()
+            set(null)
+          }}
+        >
+          {toast.action.label}
         </button>
       )}
       <button className="toast-close" onClick={() => set(null)} aria-label="Dismiss">

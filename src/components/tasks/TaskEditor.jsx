@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Dialog from '../Dialog.jsx'
 import TagInput from '../TagInput.jsx'
+import ReminderPicker from './ReminderPicker.jsx'
 import RepeatPicker from './RepeatPicker.jsx'
 import SubtaskEditor from './SubtaskEditor.jsx'
 import { showToast } from '../Toast.jsx'
 import { CheckIcon, CopyIcon, TrashIcon } from '../icons.jsx'
 import { closeTaskEditor, useTaskEditor } from './editorStore.js'
-import { tasks, useProjects, useTasks } from '../../data/store.js'
+import { tasks, useProjects, useSettings, useTasks } from '../../data/store.js'
 import { addTask, completeTask, deleteTasks, duplicateTask, reopenTask } from '../../data/actions.js'
 import { normalizeRule, presetOf, ruleFromPreset } from '../../lib/recurrence.js'
 import { formatRelative, fromMinutes, toDateKey, toMinutes } from '../../lib/dates.js'
@@ -51,6 +52,7 @@ function TaskForm({ task, draft, guard }) {
   const [confirm, setConfirm] = useState(null) // 'delete' | 'discard'
   const projects = useProjects()
   const allTasks = useTasks()
+  const { defaultReminder } = useSettings()
   const knownTags = useMemo(() => [...new Set(allTasks.flatMap((t) => t.tags))].sort(), [allTasks])
   const categories = useMemo(() => [...new Set(allTasks.map((t) => t.category).filter(Boolean))].sort(), [allTasks])
 
@@ -117,6 +119,10 @@ function TaskForm({ task, draft, guard }) {
   }
 
   const kindLabel = form.kind === 'block' ? 'time block' : 'task'
+  // A new task's reminders stay unset until you change them, so it gets the
+  // default reminder from Settings once it has a time (addTask applies it).
+  const reminders =
+    form.reminders ?? (form.startTime && defaultReminder != null ? [{ id: 'default', minutes: defaultReminder }] : [])
 
   return (
     <form
@@ -201,6 +207,16 @@ function TaskForm({ task, draft, guard }) {
         <div className="field field-wide">
           <label htmlFor="repeat-preset">Repeat</label>
           <RepeatPicker value={form.recurrence} dueDate={form.dueDate} onChange={setRepeat} />
+        </div>
+
+        <div className="field field-wide">
+          <label htmlFor="task-reminder">Reminders</label>
+          <ReminderPicker
+            value={reminders}
+            dueDate={form.dueDate}
+            startTime={form.startTime}
+            onChange={(list) => set({ reminders: list })}
+          />
         </div>
 
         {form.kind === 'task' && (

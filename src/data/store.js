@@ -27,6 +27,8 @@ const subscribe = (notify) => {
   listeners.add(notify)
   return () => listeners.delete(notify)
 }
+// For code outside React that needs to know when anything changes (reminders).
+export const subscribeStore = subscribe
 
 const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('impactme-sync') : null
 const broadcast = (table) => channel?.postMessage({ table })

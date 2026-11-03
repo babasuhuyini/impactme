@@ -1,4 +1,5 @@
 import {
+  BellIcon,
   CalendarIcon,
   CheckIcon,
   ClockIcon,
@@ -12,7 +13,7 @@ import {
 import { formatRelative } from '../../lib/dates.js'
 import { describeRule } from '../../lib/recurrence.js'
 import { formatTimeRange } from '../../lib/format.js'
-import { dueStatus, formatDue, getPriority, isDone } from '../../lib/todos.js'
+import { dueStatus, formatDue, getPriority, isDone, reminderCount } from '../../lib/todos.js'
 
 export default function TodoItem({
   todo,
@@ -99,6 +100,12 @@ export default function TodoItem({
             <span className="meta-item" title={describeRule(todo.recurrence)}>
               <RepeatIcon width={13} height={13} />
               <span className="sr-only">{describeRule(todo.recurrence)}</span>
+            </span>
+          )}
+          {!done && todo.reminders.length > 0 && (
+            <span className="meta-item" title={reminderCount(todo)}>
+              <BellIcon width={13} height={13} />
+              <span className="sr-only">{reminderCount(todo)}</span>
             </span>
           )}
           {!done && todo.priority !== 'normal' && (
