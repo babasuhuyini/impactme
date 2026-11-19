@@ -47,8 +47,6 @@ function dismissWelcome() {
 
 const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 const RESEND_COOLDOWN = 60_000
-// With PKCE, links only work in the browser that asked for them.
-const SAME_BROWSER = 'Open it in this browser.'
 
 // A CAPTCHA token, refreshed after each submit.
 function useCaptcha() {
@@ -377,11 +375,15 @@ export function ConfirmEmail() {
       }
     >
       <p className="auth-text">
-        We sent a link to <strong>{email}</strong>. Open it in this browser to finish creating your account.
+        We sent a link to <strong>{email}</strong>. Open it to finish creating your account. It works on any of
+        your devices.
       </p>
       <p className="auth-text muted">Can’t find it? Check your spam folder.</p>
       <button type="button" className="auth-link" onClick={() => navigate('/account/email', { replace: true })}>
         Use a different email
+      </button>
+      <button type="button" className="auth-link" onClick={() => navigate('/account/password')}>
+        Already confirmed? Sign in
       </button>
     </AuthScreen>
   )
@@ -423,7 +425,7 @@ export function ResetPassword() {
         }
       >
         <p className="auth-text">
-          If there’s an account for <strong>{email.trim()}</strong>, we sent a link to reset its password. {SAME_BROWSER}
+          If there’s an account for <strong>{email.trim()}</strong>, we sent a link to reset its password.
         </p>
         <p className="auth-text muted">Can’t find it? Check your spam folder.</p>
       </AuthScreen>

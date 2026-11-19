@@ -87,7 +87,7 @@ Requests made outside the app (for example by email) are handled by the controll
 
 ## 7. Security measures (summary)
 
-Row Level Security on every table, tested; secret keys only in Supabase; Content Security Policy; Cloudflare Turnstile on sign-in forms; sign-in links work only in the browser that asked (PKCE); recent sign-in required to delete an account; record size limits; dependency vulnerability check on every release; no personal data in logs. See `docs/breach-response.md` for incidents.
+Row Level Security on every table, tested; secret keys only in Supabase; Content Security Policy; Cloudflare Turnstile on sign-in forms; Google sign-in uses PKCE; email links are one-time, short-lived codes that the app verifies and then removes from the address; recent sign-in required to delete an account; record size limits; dependency vulnerability check on every release; no personal data in logs. See `docs/breach-response.md` for incidents.
 
 ## 8. Open points for the controller
 

@@ -58,6 +58,12 @@ async function fakeSupabase(page) {
       if (password !== PASSWORD) return json(400, { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' })
       return json(200, fakeSession())
     }
+    // Email links: 'good' is a valid one-time token, anything else is used up.
+    if (url.pathname === '/auth/v1/verify' && req.method() === 'POST') {
+      const { token_hash: hash } = req.postDataJSON()
+      if (hash === 'good') return json(200, fakeSession())
+      return json(403, { code: 403, error_code: 'otp_expired', msg: 'Email link is invalid or has expired' })
+    }
     if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 })
     if (url.pathname === '/auth/v1/settings') return json(200, { external: { email: true, google: false } })
     if (url.pathname === '/rest/v1/consents' && req.method() === 'GET') return json(200, [])
@@ -320,4 +326,22 @@ test('Settings: journal sync off removes it from the account; Delete Account kee
   await page.goto('./#/tasks')
   await expect(page.getByText('Keep me')).toBeVisible()
   expect(problems).toEqual([])
+})
+
+test('an email link works on a device that never started the sign-up', async ({ page }) => {
+  const problems = watchConsole(page)
+  await fakeSupabase(page)
+  await page.goto('./?token_hash=good&type=email#/')
+  await expect(page.getByRole('heading', { name: 'Before you start' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Your email is confirmed. Welcome to ImpactMe.')).toBeVisible()
+  expect(page.url()).not.toMatch(/token_hash|type=/)
+  expect(problems).toEqual([])
+})
+
+test('a used email link explains itself and signs no one in', async ({ page }) => {
+  await fakeSupabase(page)
+  await page.goto('./?token_hash=used&type=email#/settings')
+  await expect(page.getByText(/That link has expired or was already used/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Sign in to sync your devices')).toBeVisible()
+  expect(page.url()).not.toMatch(/token_hash/)
 })

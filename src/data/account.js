@@ -78,15 +78,26 @@ export async function initAccount(authClient = supabase) {
     return
   }
   set({ status: 'loading', user: null, recovery: false, consent: { status: 'unknown', journal: false } })
+
+  // A confirmation or reset link from an email (?token_hash=…&type=…) is
+  // checked first, so the app opens already signed in. It works in any
+  // browser or device: nothing from the sign-up browser is needed.
+  const emailLink = await verifyEmailLink()
+
   const { data } = client.auth.onAuthStateChange((event, session) => applyAuthEvent(event, session))
   unsubscribe = () => data.subscription.unsubscribe()
 
   // Waits until the client has finished with any `?code=` in the address.
   const { data: sessionData } = await client.auth.getSession()
   if (state.status === 'loading') applyAuthEvent('INITIAL_SESSION', sessionData?.session ?? null)
+  // A reset link: "Set a new password" (its event fired before we listened).
+  if (emailLink?.ok && emailLink.type === 'recovery' && state.status === 'signed-in') set({ recovery: true })
 
   if (typeof location !== 'undefined' && typeof history !== 'undefined') {
-    const redirect = readAuthRedirect(location.href, { signedIn: state.status === 'signed-in' })
+    const redirect = readAuthRedirect(location.href, {
+      signedIn: state.status === 'signed-in',
+      emailLink: emailLink && (emailLink.ok ? emailLink.type : 'failed'),
+    })
     if (redirect) {
       history.replaceState(history.state, '', redirect.cleanUrl)
       if (redirect.notice) set({ notice: redirect.notice })
@@ -127,14 +138,37 @@ export function toUser(user) {
 
 /* Links that come back from Supabase ------------------------------------- */
 
-const AUTH_PARAMS = ['code', 'sb_flow_id', 'error', 'error_code', 'error_description']
+const AUTH_PARAMS = ['code', 'sb_flow_id', 'error', 'error_code', 'error_description', 'token_hash']
+
+// The kinds of email link the app verifies itself (see the email templates in
+// docs/email-templates.md).
+const EMAIL_LINK_TYPES = new Set(['email', 'signup', 'recovery'])
+
+// Verifies ?token_hash=…&type=… from a confirmation or reset email. Returns
+// null when the address has none, else { ok, type }. The token is one-time
+// and short-lived; it is removed from the address straight after.
+async function verifyEmailLink() {
+  if (typeof location === 'undefined') return null
+  const params = new URLSearchParams(location.search)
+  const tokenHash = params.get('token_hash')
+  const type = params.get('type')
+  if (!tokenHash || !EMAIL_LINK_TYPES.has(type)) return null
+  try {
+    const { error } = await client.auth.verifyOtp({ token_hash: tokenHash, type })
+    if (error) console.warn('Email link failed', error.code ?? error.name ?? 'unknown')
+    return { ok: !error, type }
+  } catch (error) {
+    console.warn('Email link failed', error?.name ?? 'unknown')
+    return { ok: false, type }
+  }
+}
 
 // After a sign-in, confirmation or reset link, the address may still carry
 // auth parameters: an error (expired link, cancelled Google sign-in), or a
 // `?code=` the client couldn't use because the link was opened in a different
 // browser. Returns { cleanUrl, notice } or null when there's nothing to tidy.
 // Error text from the address is never shown: it could be anything.
-export function readAuthRedirect(href, { signedIn = false } = {}) {
+export function readAuthRedirect(href, { signedIn = false, emailLink } = {}) {
   const url = new URL(href)
   const params = {}
   for (const key of AUTH_PARAMS) {
@@ -143,6 +177,8 @@ export function readAuthRedirect(href, { signedIn = false } = {}) {
       url.searchParams.delete(key)
     }
   }
+  // `type` only belongs to an email link.
+  if (params.token_hash) url.searchParams.delete('type')
   // Errors can also arrive in the hash (#error=...), which isn't a route.
   const hash = url.hash.slice(1)
   if (hash && !hash.startsWith('/')) {
@@ -155,7 +191,13 @@ export function readAuthRedirect(href, { signedIn = false } = {}) {
   if (!Object.keys(params).length) return null
 
   let notice = null
-  if (params.error || params.error_code || params.error_description) {
+  if (params.token_hash) {
+    if (emailLink === 'failed') {
+      notice = { tone: 'error', message: 'That link has expired or was already used. Ask for a new one.' }
+    } else if (emailLink === 'email' || emailLink === 'signup') {
+      notice = { tone: 'info', message: 'Your email is confirmed. Welcome to ImpactMe.' }
+    }
+  } else if (params.error || params.error_code || params.error_description) {
     const code = params.error_code || params.error
     if (code === 'otp_expired' || /expired|invalid/i.test(params.error_description ?? '')) {
       notice = { tone: 'error', message: 'That link has expired or was already used. Ask for a new one.' }
@@ -193,7 +235,7 @@ export function friendlyAuthError(error) {
     case 'invalid_credentials':
       return 'That email and password don’t match. Try again, or create an account.'
     case 'email_not_confirmed':
-      return 'Confirm your email first. Open the link we sent you, in this browser.'
+      return 'Confirm your email first. Open the link we sent you, then sign in.'
     case 'weak_password':
       return 'Choose a stronger password, at least 8 characters.'
     case 'same_password':

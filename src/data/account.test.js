@@ -238,3 +238,68 @@ describe('consent', () => {
     await saveConsent({ age: true, terms: true, journal: false })
   }
 })
+
+describe('email links (?token_hash=…&type=…)', () => {
+  it('removes the one-time token and says the email is confirmed', () => {
+    const r = readAuthRedirect(`${SITE}?token_hash=abc123&type=email#/`, { emailLink: 'email' })
+    expect(r.cleanUrl).toBe(`${SITE}#/`)
+    expect(r.notice).toEqual({ tone: 'info', message: 'Your email is confirmed. Welcome to ImpactMe.' })
+  })
+
+  it('explains an expired or used link', () => {
+    const r = readAuthRedirect(`${SITE}?token_hash=abc123&type=recovery#/`, { emailLink: 'failed' })
+    expect(r.cleanUrl).toBe(`${SITE}#/`)
+    expect(r.notice.message).toMatch(/expired or was already used/)
+  })
+
+  it('leaves a `type` parameter alone when it isn’t part of an email link', () => {
+    expect(readAuthRedirect(`${SITE}?type=x#/`)).toBeNull()
+  })
+
+  describe('verifying on start', () => {
+    let replaced
+    beforeEach(() => {
+      replaced = null
+      globalThis.history = { state: null, replaceState: (_s, _t, url) => (replaced = url) }
+    })
+    afterEach(() => {
+      delete globalThis.location
+      delete globalThis.history
+    })
+
+    function linkClient(result) {
+      const client = fakeClient()
+      client.verified = []
+      client.auth.verifyOtp = async (args) => {
+        client.verified.push(args)
+        return result
+      }
+      return client
+    }
+
+    it('a reset link opens “Set a new password”, signed in, on any device', async () => {
+      globalThis.location = new URL(`${SITE}?token_hash=tok&type=recovery#/`)
+      const client = linkClient({ error: null })
+      client.auth.getSession = async () => ({ data: { session: session() } })
+      await initAccount(client)
+      expect(client.verified).toEqual([{ token_hash: 'tok', type: 'recovery' }])
+      expect(getAccount()).toMatchObject({ status: 'signed-in', recovery: true })
+      expect(replaced).toBe(`${SITE}#/`)
+    })
+
+    it('a used link changes nothing and says so', async () => {
+      globalThis.location = new URL(`${SITE}?token_hash=old&type=email#/`)
+      await initAccount(linkClient({ error: { code: 'otp_expired', status: 403 } }))
+      expect(getAccount()).toMatchObject({ status: 'signed-out', recovery: false })
+      expect(getAccount().notice.message).toMatch(/expired/)
+      expect(replaced).toBe(`${SITE}#/`)
+    })
+
+    it('ignores link types the app doesn’t handle', async () => {
+      globalThis.location = new URL(`${SITE}?token_hash=tok&type=magiclink#/`)
+      const client = linkClient({ error: null })
+      await initAccount(client)
+      expect(client.verified).toEqual([])
+    })
+  })
+})

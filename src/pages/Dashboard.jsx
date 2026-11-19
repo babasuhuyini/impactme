@@ -14,6 +14,7 @@ import {
   ShieldIcon,
 } from '../components/icons.jsx'
 import useJournal from '../hooks/useJournal.js'
+import { useAccount } from '../data/account.js'
 import { updateSettings, useSettings, useTasks } from '../data/store.js'
 import { addDays, toDateKey } from '../lib/dates.js'
 import { dailyPrompt, formatLongDate, formatTime, formatTimeRange, greeting } from '../lib/format.js'
@@ -380,6 +381,7 @@ function NamePrompt() {
 }
 
 function GettingStarted({ onQuickAdd, onWrite }) {
+  const signedIn = useAccount().status === 'signed-in'
   return (
     <section className="getting-started" aria-labelledby="start-heading">
       <h2 id="start-heading" className="section-title">
@@ -416,7 +418,11 @@ function GettingStarted({ onQuickAdd, onWrite }) {
           </span>
           <div>
             <strong>Keep it safe</strong>
-            <p>Everything stays in this browser on this device. Download a backup now and then.</p>
+            <p>
+              {signedIn
+                ? 'Everything is saved on this device and in your ImpactMe account. You can also download a backup.'
+                : 'Everything stays in this browser on this device. Download a backup now and then.'}
+            </p>
           </div>
           <Link className="btn secondary sm" to="/settings">
             Backup options
