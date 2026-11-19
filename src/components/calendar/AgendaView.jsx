@@ -4,6 +4,7 @@ import { formatTimeRange } from '../../lib/format.js'
 import { formatDayHeading } from '../../lib/journal.js'
 import { formatDue } from '../../lib/todos.js'
 import { layoutDay } from '../../lib/calendar.js'
+import { projectColor } from './TimeGrid.jsx'
 
 const byTime = (a, b) => (a.allDay ? -1 : a.start) - (b.allDay ? -1 : b.start)
 
@@ -64,7 +65,7 @@ function AgendaItem({ event, note, conflict, onOpen, onComplete }) {
       : formatTimeRange(task.startTime, task.endTime)
   const canComplete = task.kind === 'task' && !event.done && !event.virtual
   return (
-    <li className={['agenda-item', event.done && 'done', event.virtual && 'virtual', task.kind === 'block' && 'block'].filter(Boolean).join(' ')} data-priority={task.priority}>
+    <li className={['agenda-item', event.done && 'done', event.virtual && 'virtual', task.kind === 'block' && 'block'].filter(Boolean).join(' ')} data-priority={task.priority} data-color={projectColor(task)}>
       {canComplete ? (
         <label className="check" title="Mark as done">
           <input type="checkbox" checked={false} onChange={() => onComplete(task)} aria-label={`Complete "${task.title}"`} />

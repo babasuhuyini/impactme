@@ -1075,3 +1075,10 @@ body.cal-dragging * {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Events in a project take its colour (data-color sets --pc). */
+.cal-event[data-color],
+.cal-chip[data-color],
+.agenda-item[data-color] {
+  --p: var(--pc);
+}

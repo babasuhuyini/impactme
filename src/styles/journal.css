@@ -1248,3 +1248,12 @@
     padding-top: calc(14px + env(safe-area-inset-top));
   }
 }
+
+/* Room between the filters (search, moods, tags) and the stats card. */
+.list-head {
+  padding-bottom: 18px;
+}
+
+.list-filters {
+  row-gap: 10px;
+}
