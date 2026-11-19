@@ -483,3 +483,32 @@ describe('Sync this device', () => {
     expect(await kv(PAUSED_KEY)).toBe(false)
   })
 })
+
+describe('another account’s data on this device (audit M3)', () => {
+  it('can only be removed, never added to the account now signed in', async () => {
+    const { applyAuthEvent, setSyncState } = await import('./account.js')
+    const { chooseDeviceData } = await import('./sync.js')
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    setTransport({ ...server, refresh: async () => false })
+    await linkDevice('someone-else', true)
+    const theirs = await addTask('Their private task')
+    applyAuthEvent('SIGNED_IN', {
+      user: { id: 'user-2', email: 'b@example.com', user_metadata: {}, app_metadata: { provider: 'email' } },
+    })
+    setSyncState({ device: 'choose', otherAccount: true, counts: { tasks: 1, projects: 0, journal: 0 } })
+
+    await chooseDeviceData('add') // even if asked to add
+    expect(tasks.get(theirs.id)).toBeNull()
+    expect(await db.tasks.count()).toBe(0)
+    expect(await kv(LINK_KEY)).toBe('user-2')
+    expect(server.tables.tasks.has(theirs.id)).toBe(false)
+  })
+})
+
+describe('account limits (audit M2)', () => {
+  it('a refused write is reported as the storage limit, not a network problem', async () => {
+    const { supabaseTransport } = await import('./syncTransport.js')
+    const fake = { from: () => ({ upsert: async () => ({ data: null, error: { code: '54000', message: 'quota_exceeded' }, status: 400 }) }) }
+    await expect(supabaseTransport(fake).push('tasks', [])).rejects.toMatchObject({ kind: 'quota' })
+  })
+})

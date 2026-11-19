@@ -508,3 +508,22 @@
 .bring-row + .bring-row {
   border-top: 1px solid var(--auth-ring);
 }
+
+/* "Signed in as …" on the screens before anything syncs (audit fix M1) */
+.signed-in-as {
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--auth-sub);
+  overflow-wrap: anywhere;
+}
+
+.signed-in-as strong {
+  color: var(--text);
+}
+
+.auth-link.inline {
+  display: inline;
+  padding: 0;
+  font-size: 14px;
+}

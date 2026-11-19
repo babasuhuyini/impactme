@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AuthScreen, PrimaryButton } from '../../components/account/AuthLayout.jsx'
 import { CheckIcon, ShieldIcon } from '../../components/icons.jsx'
+import SignedInAs from '../../components/account/SignedInAs.jsx'
 import { saveConsent, signOut } from '../../data/account.js'
 
 function Item({ checked, onChange, required, children }) {
@@ -63,6 +64,7 @@ export default function Consent() {
         </>
       }
     >
+      <SignedInAs />
       <div className="consent-card">
         <Item checked={age} onChange={setAge} required>
           I’m 16 or older.

@@ -267,20 +267,23 @@ describe('email links (?token_hash=…&type=…)', () => {
       delete globalThis.history
     })
 
+    // No session until the link is verified (as on a fresh device).
     function linkClient(result) {
       const client = fakeClient()
       client.verified = []
+      let signedIn = false
       client.auth.verifyOtp = async (args) => {
         client.verified.push(args)
+        signedIn = !result.error
         return result
       }
+      client.auth.getSession = async () => ({ data: { session: signedIn ? session() : null } })
       return client
     }
 
     it('a reset link opens “Set a new password”, signed in, on any device', async () => {
       globalThis.location = new URL(`${SITE}?token_hash=tok&type=recovery#/`)
       const client = linkClient({ error: null })
-      client.auth.getSession = async () => ({ data: { session: session() } })
       await initAccount(client)
       expect(client.verified).toEqual([{ token_hash: 'tok', type: 'recovery' }])
       expect(getAccount()).toMatchObject({ status: 'signed-in', recovery: true })
@@ -292,6 +295,16 @@ describe('email links (?token_hash=…&type=…)', () => {
       await initAccount(linkClient({ error: { code: 'otp_expired', status: 403 } }))
       expect(getAccount()).toMatchObject({ status: 'signed-out', recovery: false })
       expect(getAccount().notice.message).toMatch(/expired/)
+      expect(replaced).toBe(`${SITE}#/`)
+    })
+
+    it('never switches someone already signed in into another account (audit M1)', async () => {
+      globalThis.location = new URL(`${SITE}?token_hash=theirs&type=email#/`)
+      const client = linkClient({ error: null })
+      client.auth.getSession = async () => ({ data: { session: session() } })
+      await initAccount(client)
+      expect(client.verified).toEqual([])
+      expect(getAccount().notice.message).toMatch(/already signed in/)
       expect(replaced).toBe(`${SITE}#/`)
     })
 

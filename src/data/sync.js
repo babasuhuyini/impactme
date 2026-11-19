@@ -358,7 +358,9 @@ function reportSyncError(error) {
     syncError:
       kind === 'auth'
         ? 'Sign in again to keep syncing.'
-        : kind === 'network'
+        : kind === 'quota'
+          ? 'Your account has reached its storage limit, so new items aren’t syncing. Delete some old tasks or entries to make room.'
+          : kind === 'network'
           ? 'Couldn’t reach your account. ImpactMe will try again shortly.'
           : 'Sync didn’t finish. ImpactMe will try again shortly.',
   })
@@ -382,6 +384,13 @@ async function prepareDevice(account) {
   // Never linked, or linked to someone else: never merge automatically.
   await flush()
   const counts = { tasks: tasks.all().length, projects: projects.all().length, journal: journal.all().length }
+  // Another account's data (its session ended without signing out): it can
+  // only be removed, never added to this account.
+  const otherAccount = Boolean(linked) && linked !== id
+  if (otherAccount) {
+    setSyncState({ device: 'choose', counts, otherAccount: true })
+    return
+  }
   if (!counts.tasks && !counts.projects && !counts.journal) {
     await linkDevice(id, account.consent.journal)
     setSyncState({ device: 'linked', reauth: false, lastSyncedAt: null, earlierData: Boolean(await kvGet(SNAPSHOT_KEY)) })
@@ -390,14 +399,25 @@ async function prepareDevice(account) {
   setSyncState({ device: 'choose', counts })
 }
 
-// The answer on "Bring this device's data with you?".
-export async function chooseDeviceData(add) {
+// The answer on "Bring this device's data with you?": 'add', 'later', or
+// 'remove' (another account's data: cleared as on sign-out, then linked).
+export async function chooseDeviceData(choice) {
   const account = getAccount()
   if (account.status !== 'signed-in') return
   const { id } = account.user
-  if (add) await addDeviceData(id, account.consent.journal)
-  else await keepDeviceDataAside(id, account.consent.journal)
-  setSyncState({ device: 'linked', counts: null, reauth: false, lastSyncedAt: null, earlierData: !add })
+  if (choice === 'add' && !account.otherAccount) await addDeviceData(id, account.consent.journal)
+  else if (choice === 'remove' || account.otherAccount) {
+    await clearAccountData([...SYNC_KV_KEYS, SNAPSHOT_KEY])
+    await linkDevice(id, account.consent.journal)
+  } else await keepDeviceDataAside(id, account.consent.journal)
+  setSyncState({
+    device: 'linked',
+    counts: null,
+    otherAccount: false,
+    reauth: false,
+    lastSyncedAt: null,
+    earlierData: choice === 'later',
+  })
   return syncNow()
 }
 

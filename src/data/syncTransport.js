@@ -11,7 +11,8 @@
 
 export const REMOTE_TABLE = { tasks: 'tasks', journal: 'journal_entries', projects: 'projects' }
 
-// kind: 'network' (retry later) | 'auth' (sign in again) | 'reauth' (confirm it's you) | 'server'
+// kind: 'network' (retry later) | 'auth' (sign in again) | 'reauth' (confirm it's you)
+//     | 'quota' (account limit reached) | 'server'
 export class SyncError extends Error {
   constructor(kind, code) {
     super(`Sync failed (${kind}${code ? `: ${code}` : ''})`)
@@ -23,6 +24,8 @@ export class SyncError extends Error {
 function check({ data, error, status }) {
   if (!error) return data
   const code = error.code || ''
+  // The account has reached a per-account limit (supabase/migrations/0003).
+  if (code === '54000') throw new SyncError('quota', code)
   if (status === 0 || /fetch|network/i.test(error.message ?? '')) throw new SyncError('network', code)
   if (status === 401 || code === 'PGRST301' || code === 'PGRST303') throw new SyncError('auth', code)
   throw new SyncError('server', code || String(status))

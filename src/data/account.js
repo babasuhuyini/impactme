@@ -35,6 +35,8 @@ let state = {
   // with data on this device: "Bring this device's data with you?")
   device: 'unknown',
   counts: null, // { tasks, projects, journal } for the choose screen
+  // The data on this device belongs to another account (choose screen only offers removing it).
+  otherAccount: false,
   // Signed out without choosing to (session expired) while this device is
   // still linked: "Sign in again to keep syncing".
   reauth: false,
@@ -96,7 +98,7 @@ export async function initAccount(authClient = supabase) {
   if (typeof location !== 'undefined' && typeof history !== 'undefined') {
     const redirect = readAuthRedirect(location.href, {
       signedIn: state.status === 'signed-in',
-      emailLink: emailLink && (emailLink.ok ? emailLink.type : 'failed'),
+      emailLink: emailLink && (emailLink.ok ? emailLink.type : emailLink.blocked ? 'blocked' : 'failed'),
     })
     if (redirect) {
       history.replaceState(history.state, '', redirect.cleanUrl)
@@ -153,6 +155,14 @@ async function verifyEmailLink() {
   const tokenHash = params.get('token_hash')
   const type = params.get('type')
   if (!tokenHash || !EMAIL_LINK_TYPES.has(type)) return null
+  // Someone is already signed in on this device: a link must never switch them
+  // into another account (a link can come from anyone). They sign out first.
+  try {
+    const { data } = await client.auth.getSession()
+    if (data?.session) return { ok: false, type, blocked: true }
+  } catch {
+    // Can't tell: carry on, the link is checked below.
+  }
   try {
     const { error } = await client.auth.verifyOtp({ token_hash: tokenHash, type })
     if (error) console.warn('Email link failed', error.code ?? error.name ?? 'unknown')
@@ -192,7 +202,12 @@ export function readAuthRedirect(href, { signedIn = false, emailLink } = {}) {
 
   let notice = null
   if (params.token_hash) {
-    if (emailLink === 'failed') {
+    if (emailLink === 'blocked') {
+      notice = {
+        tone: 'info',
+        message: 'You’re already signed in on this device. To use that link, sign out first in Settings, then open it again.',
+      }
+    } else if (emailLink === 'failed') {
       notice = { tone: 'error', message: 'That link has expired or was already used. Ask for a new one.' }
     } else if (emailLink === 'email' || emailLink === 'signup') {
       notice = { tone: 'info', message: 'Your email is confirmed. Welcome to ImpactMe.' }
