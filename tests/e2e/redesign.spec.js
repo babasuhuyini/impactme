@@ -101,3 +101,32 @@ test.describe('task details on a phone', () => {
     await expect(page.locator('.todo', { hasText: 'Water the garden' })).toBeVisible()
   })
 })
+
+test('journal: stats card, week groups, and the entry with pills and a gratitude card', async ({ page }) => {
+  await page.setViewportSize({ width: 1360, height: 860 })
+  await page.goto('./#/journal')
+  await expect(page.locator('.main')).toBeVisible({ timeout: 20_000 })
+  for (const [title, mood] of [
+    ['Long day, good progress', 'Good'],
+    ['Quiet morning', 'Okay'],
+  ]) {
+    await page.getByRole('button', { name: 'New entry' }).first().click()
+    await page.locator('.doc-title').fill(title)
+    await page.getByRole('radio', { name: mood }).click()
+    await page.locator('.doc-body').fill('Finished the upload checks before lunch.')
+  }
+  await page.getByLabel('Grateful for').fill('A good walk home')
+
+  await expect(page.locator('.journal-stats')).toContainText('2 entries')
+  await expect(page.getByRole('img', { name: /Mood over the last 14 days/ })).toBeVisible()
+  await expect(page.locator('.list-group-label').first()).toHaveText('This week')
+  await expect(page.locator('.entry-item')).toHaveCount(2)
+  await expect(page.locator('.entry-item').first()).toContainText('Mood: Okay')
+  await expect(page.locator('.doc-footer')).toContainText('words')
+  await shot(page, 'desk-journal')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('./#/journal')
+  await expect(page.locator('.journal-stats')).toBeVisible()
+  await shot(page, 'phone-journal')
+})

@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import useJournal from '../hooks/useJournal.js'
 import EntryEditor from '../components/journal/EntryEditor.jsx'
 import MoodTrend from '../components/journal/MoodTrend.jsx'
+import MoodFace from '../components/journal/MoodFace.jsx'
+import { addDays, parseDateKey, toDateKey } from '../lib/dates.js'
 import { showToast } from '../components/Toast.jsx'
 import { BookIcon, PlusIcon, SearchIcon } from '../components/icons.jsx'
 import { journal } from '../data/store.js'
@@ -12,16 +14,25 @@ import {
   computeStreak,
   entrySnippet,
   entryTitle,
-  formatDayHeading,
   getMood,
 } from '../lib/journal.js'
 
-function groupByDate(entries) {
+// "This week", "Last week", then by month (entries are newest first).
+function weekLabel(date) {
+  const day = parseDateKey(toDateKey())
+  const thisWeek = addDays(toDateKey(), -((day.getDay() + 6) % 7)) // Monday
+  if (date >= thisWeek) return 'This week'
+  if (date >= addDays(thisWeek, -7)) return 'Last week'
+  return parseDateKey(date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+}
+
+function groupByWeek(entries) {
   const groups = []
   for (const entry of entries) {
+    const label = weekLabel(entry.date)
     const last = groups[groups.length - 1]
-    if (last && last[0] === entry.date) last[1].push(entry)
-    else groups.push([entry.date, [entry]])
+    if (last && last[0] === label) last[1].push(entry)
+    else groups.push([label, [entry]])
   }
   return groups
 }
@@ -115,7 +126,8 @@ export default function Journal() {
                       title={m.label}
                       aria-pressed={moodFilter === m.value}
                     >
-                      {m.emoji}
+                      <MoodFace mood={m.value} size={22} />
+                      <span className="sr-only">{m.label}</span>
                     </button>
                   ))}
                 </div>
@@ -161,9 +173,9 @@ export default function Journal() {
           ) : filtered.length === 0 ? (
             <p className="empty-inline">No entries match these filters.</p>
           ) : (
-            groupByDate(filtered).map(([date, items]) => (
-              <div key={date} role="list">
-                <div className="list-group-label">{formatDayHeading(date)}</div>
+            groupByWeek(filtered).map(([label, items]) => (
+              <div key={label} role="list" aria-label={label}>
+                <div className="list-group-label">{label}</div>
                 {items.map((entry) => {
                   const title = entryTitle(entry)
                   const snippet = entrySnippet(entry)
@@ -176,25 +188,25 @@ export default function Journal() {
                       className={entry.id === entryId ? 'entry-item active' : 'entry-item'}
                       aria-current={entry.id === entryId ? 'page' : undefined}
                     >
-                      <div className="entry-item-top">
+                      <span className="entry-date" aria-hidden="true">
+                        <span>{parseDateKey(entry.date).toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                        <strong>{parseDateKey(entry.date).getDate()}</strong>
+                      </span>
+                      <span className="entry-item-body">
                         <span className={title ? 'entry-item-title' : 'entry-item-title untitled'}>
                           {title || 'Untitled'}
                         </span>
-                        {mood && (
-                          <span className="entry-item-mood" title={mood.label}>
-                            {mood.emoji}
-                          </span>
-                        )}
-                      </div>
-                      <p className="entry-item-snippet">{snippet || 'No additional text'}</p>
-                      <div className="entry-item-meta">
-                        <span>{formatTime(entry.createdAt)}</span>
-                        {entry.tags.slice(0, 3).map((tag) => (
-                          <span key={tag} className="entry-item-tag">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
+                        <span className="entry-item-snippet">{snippet || 'No additional text'}</span>
+                        <span className="sr-only">
+                          {parseDateKey(entry.date).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                          {entry.createdAt ? `, ${formatTime(entry.createdAt)}` : ''}
+                        </span>
+                      </span>
+                      {mood && (
+                        <span className="entry-mood-dot" data-mood={mood.value}>
+                          <span className="sr-only">Mood: {mood.label}</span>
+                        </span>
+                      )}
                     </Link>
                   )
                 })}

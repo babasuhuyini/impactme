@@ -37,7 +37,7 @@ export default function App() {
   const { create } = useJournal()
   const writing = /^\/journal\/.+/.test(pathname)
   // Phone screens with their own back link in place of the shared header.
-  const ownHeader = /^\/(tasks\/.+|calendar)/.test(pathname)
+  const ownHeader = /^\/(tasks\/.+|calendar|journal)/.test(pathname)
   // The calendar's toolbar is its top bar on desktop.
   const ownTopbar = pathname.startsWith('/calendar')
   // Task details open beside the page on desktop.
