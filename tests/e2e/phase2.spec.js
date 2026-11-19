@@ -223,7 +223,9 @@ test('calendar: schedule, drag, resize, overlaps, blocks and export', async ({ p
   const handle = await review.locator('.cal-resize').boundingBox()
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
   await page.mouse.down()
-  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 + 48, { steps: 8 })
+  // One hour, measured from the grid (the design sets the hour height).
+  const hour = (await col('2026-11-04').boundingBox()).height / 24
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 + hour, { steps: 8 })
   await page.mouse.up()
   await expect(review).toHaveAttribute('aria-label', /10:00 AM – 12:00 PM/)
 

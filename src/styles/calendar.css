@@ -1051,3 +1051,27 @@ body.cal-dragging * {
     transform: translateX(-50%);
   }
 }
+
+/* Desktop toolbar order: title, view switch, then Today / ‹ › / export / + */
+@media (min-width: 861px) {
+  .cal-toolbar .cal-nav {
+    display: contents;
+  }
+
+  .cal-toolbar .cal-nav .btn {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .cal-toolbar .cal-nav .icon-btn {
+    order: 2;
+  }
+}
+
+/* Long titles end in "…" rather than breaking mid-word. */
+.cal-event-title {
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
