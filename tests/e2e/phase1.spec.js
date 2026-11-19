@@ -98,10 +98,11 @@ test('quick add, completing and undo work from anywhere', async ({ page }) => {
   await expect(page.locator('.toast')).toContainText('Task added for today')
 
   const row = page.locator('.dash-task', { hasText: 'Buy milk' })
-  await expect(row.locator('.priority-badge')).toHaveText('Urgent')
-  await row.locator('.check').click()
+  await expect(row.locator('.row-flag')).toHaveText('Urgent priority')
+  await row.locator('.rc').click()
   await expect(page.locator('.done-list')).toContainText('Buy milk')
-  await expect(page.locator('.day-ring-label strong')).toHaveText('100%')
+  await expect(page.locator('.day-ring')).toHaveAttribute('aria-label', '1 of 1 tasks due today done')
+  await expect(page.locator('.day-ring-text')).toHaveText('1/1')
   await page.locator('.toast').getByRole('button', { name: 'Undo' }).click()
   await expect(page.locator('.dash-task', { hasText: 'Buy milk' })).toBeVisible()
 
@@ -151,9 +152,9 @@ test('journal autosaves, survives reload, and deletion can be undone', async ({ 
   await page.locator('.toast').getByRole('button', { name: 'Undo' }).click()
   await expect(page.locator('.entry-item')).toHaveCount(1)
 
-  // Mood check-in on the dashboard starts today's entry with that mood.
+  // Home shows today's entry under the mood check-in.
   await page.goto('./')
-  await expect(page.locator('.journal-preview')).toContainText('Morning pages')
+  await expect(page.locator('.mood-entry')).toContainText('Morning pages')
   expect(errors).toEqual([])
 })
 
