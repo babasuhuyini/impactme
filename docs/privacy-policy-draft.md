@@ -6,9 +6,9 @@
 
 ## Who we are
 
-ImpactMe is a personal app for tasks, planning and journaling, run by **[CONTROLLER NAME]**, **[ADDRESS]**, Ghana ("we", "us"). We are the data controller for the personal data described here. We are registered with Ghana's Data Protection Commission under number **[DPC REGISTRATION NUMBER]**.
+ImpactMe is a personal app for tasks, planning and journaling, run by **Echo & Impact**, Ghana ("we", "us"). We are the data controller for the personal data described here. We are registered with Ghana's Data Protection Commission under number **[DPC REGISTRATION NUMBER]**.
 
-Contact us about your data at **[CONTACT EMAIL]**.
+Contact us about your data at **babasuhuyinitayyib@gmail.com
 
 ## The short version
 
