@@ -62,7 +62,7 @@ test('Daybook data carries over and the dashboard summarises the day', async ({ 
 
   // Legacy priority 3 became High; the old localStorage copy is untouched.
   await page.locator('.sidebar').getByRole('link', { name: /^Tasks/ }).click()
-  await expect(page.locator('.todo', { hasText: 'Send report' }).locator('.priority-badge')).toHaveText('High')
+  await expect(page.locator('.todo', { hasText: 'Send report' }).locator('.row-flag')).toHaveText('High priority')
   await expect(page.locator('.todo')).toHaveCount(4)
   const legacyStillThere = await page.evaluate(() => JSON.parse(localStorage.getItem('todos.items')).length)
   expect(legacyStillThere).toBe(4)

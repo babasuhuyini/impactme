@@ -63,10 +63,10 @@ test('quick add reads dates, times and repeats, and lets you correct them', asyn
   await expect(page.locator('.todo', { hasText: 'Meet Ama Friday' })).toContainText('2:00 PM')
 
   // Completing a repeating task schedules the next one and keeps a record.
-  await study.locator('.check').click()
+  await study.locator('.rc').click()
   await expect(page.locator('.toast')).toContainText('Next one scheduled')
-  await expect(page.locator('.todo:not(.done)', { hasText: 'Study' }).locator('.due-badge')).toContainText('Tomorrow')
-  await page.getByRole('tab', { name: 'Completed' }).click()
+  await expect(page.locator('.todo:not(.done)', { hasText: 'Study' }).locator('.todo-meta')).toContainText('Tomorrow')
+  await page.locator('.sidebar').getByRole('link', { name: 'Completed' }).click()
   await expect(page.locator('.todo.done', { hasText: 'Study' })).toHaveCount(1)
   expect(errors).toEqual([])
 })
@@ -88,7 +88,7 @@ test('task editor: projects, subtasks, custom repeats and unsaved changes', asyn
   await page.getByLabel('New task').fill('Fix the tap tomorrow')
   await page.keyboard.press('Enter')
   const row = page.locator('.todo', { hasText: 'Fix the tap' })
-  await expect(row.locator('.due-badge')).toContainText('Tomorrow')
+  await expect(row.locator('.todo-meta')).toContainText('Tomorrow')
 
   await row.locator('.todo-body').click()
   const editor = page.getByRole('dialog', { name: 'Edit task' })
@@ -107,7 +107,7 @@ test('task editor: projects, subtasks, custom repeats and unsaved changes', asyn
   await editor.getByRole('button', { name: 'Save' }).click()
   await expect(editor).toBeHidden()
 
-  await expect(row).toContainText('0/2')
+  await expect(row).toContainText('0 of 2 subtasks')
   await expect(row).toContainText('Home care')
   await expect(row).toContainText('Every 2 weeks on Mon, Wed')
   await shot(page, 'p2-project')

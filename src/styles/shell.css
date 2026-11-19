@@ -246,3 +246,14 @@
     bottom: calc(49px + var(--s-4) + env(safe-area-inset-bottom));
   }
 }
+
+@media (max-width: 860px) {
+  .phone-bar.hidden {
+    display: none;
+  }
+
+  /* Keep clear of the status bar when a screen has no shared header. */
+  .main:has(.phone-bar.hidden) .page-scroll {
+    padding-top: env(safe-area-inset-top);
+  }
+}

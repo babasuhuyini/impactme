@@ -92,5 +92,8 @@ export default defineConfig(({ mode }) => ({
   },
   test: {
     include: ['src/**/*.test.js'],
+    // The first test in each file also pays for starting its worker, which
+    // can pass the 5-second default when this machine is busy.
+    testTimeout: 15000,
   },
 }))

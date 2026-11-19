@@ -28,22 +28,6 @@
   border-radius: 4px;
 }
 
-.project-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 600;
-  color: var(--text-2);
-}
-
-.project-chip::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
-  background: var(--pc);
-}
-
 .field-hint {
   font-size: var(--fs-xs);
   color: var(--muted);

@@ -1,12 +1,22 @@
-import { useMemo, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import TasksHub from './TasksHub.jsx'
+import usePhone from '../hooks/usePhone.js'
 import TodoComposer from '../components/todos/TodoComposer.jsx'
 import TodoItem from '../components/todos/TodoItem.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import ProjectDialog from '../components/tasks/ProjectDialog.jsx'
 import { openTask } from '../components/tasks/editorStore.js'
 import { showToast } from '../components/Toast.jsx'
-import { ChecklistIcon, ChevronIcon, PencilIcon, SearchIcon, SelectIcon, TrashIcon } from '../components/icons.jsx'
+import {
+  ChecklistIcon,
+  ChevronIcon,
+  ChevronLeftIcon,
+  PencilIcon,
+  SearchIcon,
+  SelectIcon,
+  TrashIcon,
+} from '../components/icons.jsx'
 import { updateSettings, useProjects, useSettings, useTasks } from '../data/store.js'
 import {
   addTask,
@@ -21,15 +31,22 @@ import {
 import { toDateKey } from '../lib/dates.js'
 import { PRIORITIES, SORTS, VIEWS, isBlock, isDone, matchesQuery } from '../lib/todos.js'
 
-const TAB_ORDER = ['inbox', 'today', 'upcoming', 'overdue', 'all', 'completed']
 
 export default function Todos() {
   const { view: viewParam, projectId } = useParams()
   const navigate = useNavigate()
+  const phone = usePhone()
+  const [searchParams] = useSearchParams()
   const allTasks = useTasks()
   const projects = useProjects()
   const { tasksSort: sort, tasksShowCompleted: showCompleted } = useSettings()
-  const [query, setQuery] = useState('')
+  // A search started on the phone Tasks hub arrives as ?q=.
+  const [query, setQuery] = useState(() => searchParams.get('q') ?? '')
+  const linkedQuery = searchParams.get('q')
+  // This page stays mounted between the hub and the lists, so follow the address too.
+  useEffect(() => {
+    if (linkedQuery !== null) setQuery(linkedQuery)
+  }, [linkedQuery])
   const [priorityFilter, setPriorityFilter] = useState('')
   const [projectFilter, setProjectFilter] = useState('')
   const [tagFilter, setTagFilter] = useState(null)
@@ -47,6 +64,8 @@ export default function Todos() {
   const allTags = useMemo(() => [...new Set(pool.flatMap((t) => t.tags))].sort(), [pool])
 
   if (projectId && !project) return <Navigate to="/tasks" replace />
+  // Phones: the Tasks tab opens the hub; the lists live at /tasks/<view>.
+  if (phone && !viewParam && !projectId) return <TasksHub />
 
   const inView = project ? (t) => t.projectId === project.id : VIEWS[view].test
   const narrowed = Boolean(priorityFilter || projectFilter || tagFilter || query.trim())
@@ -194,6 +213,10 @@ export default function Todos() {
   return (
     <div className="page-scroll">
       <section className="page">
+        <Link to="/tasks" className="back-link phone-only">
+          <ChevronLeftIcon width={22} height={22} strokeWidth={2.4} />
+          Tasks
+        </Link>
         <header className="page-head">
           <div className="page-title-row">
             {project && <span className="project-dot lg" data-color={project.color} aria-hidden="true" />}
@@ -233,26 +256,6 @@ export default function Todos() {
         </header>
 
         {!completedView && <TodoComposer key={view + (project?.id ?? '')} onAdd={addTask} defaults={defaults} />}
-
-        <div className="view-tabs" role="tablist" aria-label="Task views">
-          {TAB_ORDER.map((key) => {
-            const count = key === 'completed' ? 0 : open.filter(VIEWS[key].test).length
-            return (
-              <button
-                key={key}
-                role="tab"
-                aria-selected={view === key}
-                className={view === key ? 'view-tab active' : 'view-tab'}
-                onClick={() => navigate(key === 'all' ? '/tasks' : `/tasks/${key}`)}
-              >
-                {VIEWS[key].label}
-                {count > 0 && key !== 'all' && (
-                  <span className={key === 'overdue' ? 'tab-count alert' : 'tab-count'}>{count}</span>
-                )}
-              </button>
-            )
-          })}
-        </div>
 
         {selecting ? (
           <div className="bulk-bar" role="toolbar" aria-label="Selected tasks">
@@ -392,7 +395,9 @@ export default function Todos() {
             {narrowed ? 'No tasks match these filters.' : project ? 'No open tasks in this project.' : VIEWS[view].empty}
           </p>
         ) : (
-          <ul className={dragId ? 'todo-list dragging' : 'todo-list'}>{listed.map(renderTask)}</ul>
+          <div className="list-card">
+            <ul className={dragId ? 'todo-list dragging' : 'todo-list'}>{listed.map(renderTask)}</ul>
+          </div>
         )}
 
         {!completedView && visibleDone.length > 0 && (
@@ -408,7 +413,11 @@ export default function Todos() {
                 <span className="tab-count">{visibleDone.length}</span>
               </button>
             </div>
-            {showCompleted && <ul className="todo-list">{visibleDone.slice(0, 50).map(renderTask)}</ul>}
+            {showCompleted && (
+              <div className="list-card">
+                <ul className="todo-list">{visibleDone.slice(0, 50).map(renderTask)}</ul>
+              </div>
+            )}
             {showCompleted && visibleDone.length > 50 && (
               <button className="link" onClick={() => navigate('/tasks/completed')}>
                 See all {visibleDone.length} completed

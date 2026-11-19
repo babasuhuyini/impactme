@@ -36,6 +36,8 @@ export default function App() {
   const navigate = useNavigate()
   const { create } = useJournal()
   const writing = /^\/journal\/.+/.test(pathname)
+  // Phone screens with their own back link in place of the shared header.
+  const ownHeader = /^\/tasks\/.+/.test(pathname)
 
 
   // Keep repeating time blocks on their current date, now and whenever the app comes back into view.
@@ -162,7 +164,7 @@ export default function App() {
           </div>
         </header>
         {/* Phones: the brand and a round + button above each screen. */}
-        <header className="phone-bar">
+        <header className={ownHeader ? 'phone-bar hidden' : 'phone-bar'}>
           <BrandMark size={28} className="brand-mark" />
           <button className="round-btn primary" onClick={() => setQuickAddOpen(true)} aria-label="Quick add">
             <PlusIcon width={18} height={18} strokeWidth={2.2} />

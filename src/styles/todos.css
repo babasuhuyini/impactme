@@ -587,3 +587,399 @@
     flex-wrap: wrap;
   }
 }
+
+/* ==========================================================================
+   UI upgrade: task lists (overrides the rules above)
+   ========================================================================== */
+.page {
+  max-width: 880px;
+  padding: 26px clamp(16px, 3vw, 40px) 40px;
+}
+
+.page-head {
+  margin-bottom: 16px;
+}
+
+.page-title-row > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.page-title {
+  font-size: 34px;
+  letter-spacing: -0.035em;
+}
+
+.page-sub {
+  margin-top: 0;
+  font-size: 15px;
+}
+
+/* Add field: a white pill with a round + */
+.composer {
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--card-ring);
+}
+
+/* Filters as grey buttons (pills on phones) */
+.list-toolbar {
+  gap: 8px;
+  padding: 16px 0 12px;
+}
+
+.search-inline,
+.select-inline {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--fill-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.search-inline {
+  flex: 1 1 180px;
+}
+
+.search-inline input {
+  font-size: 13px;
+}
+
+/* Rows inside a white card, iOS-style hairlines */
+.page .list-card {
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.todo-list {
+  margin: 0;
+}
+
+.todo {
+  --row-bg: var(--surface);
+  position: relative;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 0;
+  background: var(--row-bg);
+}
+
+.todo:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 52px;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--border);
+}
+
+.todo:hover {
+  --row-bg: var(--hover);
+}
+
+.todo.active,
+.todo.selected {
+  --row-bg: var(--accent-soft);
+}
+
+.todo-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.todo-text {
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.todo-meta {
+  gap: 4px 8px;
+  margin-top: 0;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.todo-meta.overdue {
+  color: var(--danger);
+}
+
+.meta-part + .meta-part::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--muted);
+}
+
+.todo-meta .tag-link {
+  color: var(--accent-ink);
+  font-weight: 400;
+}
+
+.todo.done .todo-text {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.todo-delete {
+  margin: -6px -8px -6px 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.todo:hover .todo-delete,
+.todo-delete:focus-visible {
+  opacity: 1;
+}
+
+.completed-section {
+  margin-top: 24px;
+}
+
+.completed-head {
+  padding: 0 4px 8px;
+  border-bottom: 0;
+}
+
+.completed-toggle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+
+.back-link {
+  display: none;
+}
+
+/* Phones ------------------------------------------------------------------ */
+@media (max-width: 860px) {
+  .page {
+    padding: 0 16px 24px;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    height: 44px;
+    margin-left: -6px;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--accent-ink);
+  }
+
+  .page-head {
+    padding: 0 4px;
+    margin-bottom: 12px;
+  }
+
+  .page-title-row > div {
+    display: block;
+  }
+
+  .page-title {
+    font-size: 32px;
+    letter-spacing: -0.03em;
+  }
+
+  .page-sub {
+    margin-top: 6px;
+  }
+
+  .composer {
+    box-shadow: none;
+  }
+
+  .list-toolbar {
+    padding: 14px 0 14px;
+  }
+
+  .search-inline,
+  .select-inline {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 14px;
+  }
+
+  .page .list-card {
+    border-radius: 12px;
+    box-shadow: none;
+  }
+
+  /* Always show delete on touch screens (no hover). */
+  .todo-delete {
+    opacity: 1;
+  }
+}
+
+/* Phone Tasks hub ---------------------------------------------------------- */
+.hub {
+  padding: 0 16px 24px;
+}
+
+.hub-title {
+  padding: 2px 4px 14px;
+  font-size: 32px;
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.hub-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 11px;
+  background: var(--fill);
+  color: var(--muted);
+}
+
+.hub-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 17px;
+  color: var(--text);
+}
+
+.hub-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 16px;
+}
+
+.hub-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 10px 10px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.hub-tile:active {
+  transform: scale(0.98);
+}
+
+.hub-tile-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.hub-tile-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.hub-tile-count {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.hub-tile-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.hub-projects {
+  padding-top: 26px;
+}
+
+.hub-empty {
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+/* Navigation rows (projects, settings): tile, label, value, chevron */
+.nav-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-rows li {
+  position: relative;
+}
+
+.nav-rows li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 58px;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--border);
+}
+
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 16px;
+  color: var(--text);
+}
+
+.nav-row:active {
+  background: var(--hover);
+}
+
+.nav-row-tile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--pc, var(--muted));
+  color: #fff;
+}
+
+.nav-row-tile.round {
+  border-radius: 50%;
+}
+
+.nav-row-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-row-value {
+  font-size: 17px;
+  color: var(--muted);
+}
+
+.nav-row-chevron {
+  color: var(--muted);
+  opacity: 0.7;
+}
