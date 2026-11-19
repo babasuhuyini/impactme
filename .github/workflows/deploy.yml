@@ -1,5 +1,6 @@
 # Tests and builds the app, then publishes it to GitHub Pages on every push to main.
-# If a unit test fails, nothing is published.
+# If a unit test fails, a dependency has a known high-severity vulnerability,
+# or an account setting is missing, nothing is published.
 name: Deploy to GitHub Pages
 
 on:
@@ -29,27 +30,38 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Stops the release if any dependency has a known high or critical vulnerability.
+      - name: Check dependencies for known vulnerabilities
+        run: npm audit --audit-level=high
       - run: npm test
       # Sign-in and sync settings come from repository variables (Settings ›
       # Secrets and variables › Actions › Variables). Without them the build stops,
       # so a release never goes out with accounts switched off by mistake.
+      # These are public values; secret keys never go here.
       - name: Check account settings
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
         run: |
           missing=""
-          for v in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SITE_URL; do
-            [ -z "${!v}" ] && missing="$missing $v"
+          for v in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SITE_URL VITE_TURNSTILE_SITE_KEY; do
+            if [ -z "${!v}" ]; then
+              missing="$missing $v"
+            fi
           done
           if [ -n "$missing" ]; then
             echo "::error::Missing repository variables:$missing"
             exit 1
           fi
           case "$VITE_SUPABASE_PUBLISHABLE_KEY" in
-            sb_secret_*) echo "::error::VITE_SUPABASE_PUBLISHABLE_KEY is a secret key. Use the publishable key."; exit 1 ;;
+            sb_secret_*)
+              echo "::error::VITE_SUPABASE_PUBLISHABLE_KEY is a secret key. Use the publishable key, and revoke that secret key now."
+              exit 1
+              ;;
           esac
+          echo "All account settings are present."
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
