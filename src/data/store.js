@@ -5,6 +5,13 @@
 
 import { useSyncExternalStore } from 'react'
 import { db } from './db.js'
+import {
+  SETTINGS_QUEUE_KEY,
+  SYNCED_SETTINGS,
+  queueChanges,
+  queueKey,
+  syncedSettingsChanged,
+} from './syncQueue.js'
 import { migrateFromDaybook } from './migrate.js'
 import {
   DEFAULT_SETTINGS,
@@ -36,6 +43,12 @@ const broadcast = (table) => channel?.postMessage({ table })
 let reportError = (error) => console.error(error)
 export function onStorageError(handler) {
   reportError = handler
+}
+
+// Told when a local change was queued for sync, so sync can run soon after.
+let notifyQueued = () => {}
+export function onSyncQueued(handler) {
+  notifyQueued = handler
 }
 
 function setSaveStatus(status) {
@@ -84,15 +97,22 @@ async function writePending() {
   if (!work.length) return
 
   try {
-    await db.transaction('rw', TABLES.map((t) => db[t]), async () => {
+    let queued = 0
+    await db.transaction('rw', [...TABLES.map((t) => db[t]), db.kv, db.syncQueue], async () => {
       for (const [table, ops] of work) {
         const puts = ops.filter(([, r]) => r).map(([, r]) => r)
         const deletes = ops.filter(([, r]) => !r).map(([id]) => id)
         if (puts.length) await db[table].bulkPut(puts)
         if (deletes.length) await db[table].bulkDelete(deletes)
       }
+      // Recorded for sync in the same transaction, so a saved change is never missed.
+      queued = await queueChanges(
+        db,
+        work.flatMap(([table, ops]) => ops.map(([id, record]) => ({ table, id, op: record ? 'put' : 'delete' })))
+      )
     })
     work.forEach(([table]) => broadcast(table))
+    if (queued) notifyQueued()
     if (!TABLES.some((t) => pending[t].size)) setSaveStatus('saved')
   } catch (error) {
     setSaveStatus('error')
@@ -190,12 +210,23 @@ export const journal = collection('journal')
 export const projects = collection('projects')
 
 export function updateSettings(patch) {
+  const before = state.settings
   state.settings = normalizeSettings({ ...state.settings, ...patch })
+  const settings = state.settings
   mirrorTheme()
   emit()
-  db.kv
-    .put({ key: 'settings', value: state.settings })
-    .then(() => broadcast('settings'))
+  // Only a change to a synced setting is queued: pushing for a theme change
+  // could send this device's older copies of the synced settings as new.
+  const synced = syncedSettingsChanged(before, settings)
+  let queued = 0
+  db.transaction('rw', db.kv, db.syncQueue, async () => {
+    await db.kv.put({ key: 'settings', value: settings })
+    if (synced) queued = await queueChanges(db, [{ table: 'settings', id: 'settings', op: 'put' }])
+  })
+    .then(() => {
+      broadcast('settings')
+      if (queued) notifyQueued()
+    })
     .catch(reportError)
 }
 
@@ -223,7 +254,8 @@ export const useSaveStatus = () => useSyncExternalStore(subscribe, () => state.s
 export async function restoreData(data, mode) {
   await flush()
   const result = { added: 0, updated: 0 }
-  await db.transaction('rw', [...TABLES.map((t) => db[t]), db.kv], async () => {
+  let queued = 0
+  await db.transaction('rw', [...TABLES.map((t) => db[t]), db.kv, db.syncQueue], async () => {
     const before = {
       tasks: await db.tasks.toArray(),
       journal: await db.journal.toArray(),
@@ -232,6 +264,7 @@ export async function restoreData(data, mode) {
     }
     await db.kv.put({ key: SAFETY_KEY, value: { at: Date.now(), ...before } })
 
+    const changes = []
     for (const table of TABLES) {
       const existing = new Map(before[table].map((r) => [r.id, r]))
       const records = data[table] ?? [] // older backups have no projects
@@ -240,14 +273,122 @@ export async function restoreData(data, mode) {
           ? records
           : records.filter((r) => !existing.has(r.id) || r.updatedAt > (existing.get(r.id).updatedAt ?? 0))
       for (const r of incoming) existing.has(r.id) ? result.updated++ : result.added++
-      if (mode === 'replace') await db[table].clear()
+      if (mode === 'replace') {
+        await db[table].clear()
+        const kept = new Set(incoming.map((r) => r.id))
+        for (const id of existing.keys()) if (!kept.has(id)) changes.push({ table, id, op: 'delete' })
+      }
       await db[table].bulkPut(incoming)
+      for (const r of incoming) changes.push({ table, id: r.id, op: 'put' })
     }
-    if (mode === 'replace' && data.settings) await db.kv.put({ key: 'settings', value: data.settings })
+    if (mode === 'replace' && data.settings) {
+      await db.kv.put({ key: 'settings', value: data.settings })
+      if (syncedSettingsChanged(before.settings, data.settings)) changes.push({ table: 'settings', id: 'settings', op: 'put' })
+    }
+    queued = await queueChanges(db, changes)
   })
   await Promise.all([...TABLES, 'settings'].map(reload))
   ;[...TABLES, 'settings'].forEach(broadcast)
+  if (queued) notifyQueued()
   return result
+}
+
+/* Sync ------------------------------------------------------------------- */
+
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+
+// Applies rows pulled from the account ({ id, data, deleted, changed_at }).
+// Never queues them. A row is skipped when this device has a newer change to
+// that record: one still being saved, or one queued with a later time (it will
+// be pushed). Applying the same rows twice changes nothing.
+export async function applyRemote(table, rows) {
+  const normalize = NORMALIZE[table]
+  const localWrite = (id) => pending[table].has(id) || inflight[table].has(id)
+  const puts = []
+  const deletes = []
+  await db.transaction('rw', db[table], db.syncQueue, async () => {
+    const queued = await db.syncQueue.bulkGet(rows.map((r) => queueKey(table, r.id)))
+    const current = await db[table].bulkGet(rows.map((r) => r.id))
+    const settled = []
+    rows.forEach((row, i) => {
+      if (localWrite(row.id)) return
+      const entry = queued[i]
+      if (entry && entry.changedAt > row.changed_at) return
+      if (entry) settled.push(entry.key) // the account already has this change or a newer one
+      if (row.deleted) {
+        if (current[i]) deletes.push(row.id)
+        return
+      }
+      const record = normalize(row.data)
+      if (record && record.id === row.id && !same(record, current[i])) puts.push(record)
+    })
+    if (puts.length) await db[table].bulkPut(puts)
+    if (deletes.length) await db[table].bulkDelete(deletes)
+    if (settled.length) await db.syncQueue.bulkDelete(settled)
+  })
+  // Edits made while that transaction ran stay on top.
+  const fresh = puts.filter((r) => !localWrite(r.id))
+  const gone = new Set(deletes.filter((id) => !localWrite(id)))
+  if (!fresh.length && !gone.size) return 0
+  const byId = new Map(state[table].map((r) => [r.id, r]))
+  fresh.forEach((r) => byId.set(r.id, r))
+  gone.forEach((id) => byId.delete(id))
+  state[table] = [...byId.values()]
+  emit()
+  broadcast(table)
+  return fresh.length + gone.size
+}
+
+// Applies the account's synced settings ({ data, changed_at }). Device-only
+// settings never change from a pull.
+export async function applyRemoteSettings(row) {
+  let next = null
+  await db.transaction('rw', db.kv, db.syncQueue, async () => {
+    const entry = await db.syncQueue.get(SETTINGS_QUEUE_KEY)
+    if (entry && entry.changedAt > row.changed_at) return
+    if (entry) await db.syncQueue.delete(SETTINGS_QUEUE_KEY)
+    const current = normalizeSettings((await db.kv.get('settings'))?.value)
+    const incoming = Object.fromEntries(SYNCED_SETTINGS.filter((k) => k in (row.data ?? {})).map((k) => [k, row.data[k]]))
+    const merged = normalizeSettings({ ...current, ...incoming })
+    next = { ...current, ...Object.fromEntries(SYNCED_SETTINGS.map((k) => [k, merged[k]])) }
+    if (same(next, current)) next = null
+    else await db.kv.put({ key: 'settings', value: next })
+  })
+  if (!next) return false
+  state.settings = next
+  mirrorTheme()
+  emit()
+  broadcast('settings')
+  return true
+}
+
+// Empties tasks, journal and projects on this device without queueing
+// anything ("Not Now" on first sign-in keeps a snapshot first).
+export async function clearLocalRecords() {
+  await flush()
+  await db.transaction('rw', TABLES.map((t) => db[t]), async () => {
+    for (const t of TABLES) await db[t].clear()
+  })
+  TABLES.forEach((t) => (state[t] = []))
+  emit()
+  TABLES.forEach(broadcast)
+}
+
+// After sign-out: removes the account's data from this device. Data saved on
+// the device isn't encrypted, so nothing of the account may stay behind on a
+// shared device. Device-only settings (theme, reminders on/off) are kept.
+export async function clearAccountData(kvKeys) {
+  await flush()
+  await db.transaction('rw', [...TABLES.map((t) => db[t]), db.kv, db.syncQueue, db.reminderLog, db.snoozes], async () => {
+    for (const t of TABLES) await db[t].clear()
+    await Promise.all([db.syncQueue.clear(), db.reminderLog.clear(), db.snoozes.clear()])
+    await db.kv.bulkDelete([...kvKeys, SAFETY_KEY])
+    const current = normalizeSettings((await db.kv.get('settings'))?.value)
+    const reset = { ...current, ...Object.fromEntries(SYNCED_SETTINGS.map((k) => [k, DEFAULT_SETTINGS[k]])) }
+    await db.kv.put({ key: 'settings', value: reset })
+  })
+  await Promise.all([...TABLES, 'settings'].map(reload))
+  ;[...TABLES, 'settings', 'snoozes'].forEach(broadcast)
 }
 
 export async function getSafetySnapshot() {

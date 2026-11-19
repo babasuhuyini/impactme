@@ -2,6 +2,7 @@
 // into IndexedDB. The old keys are left untouched as a fallback copy.
 
 import { normalizeEntry, normalizeList, normalizeSettings, normalizeTask } from './models.js'
+import { queueChanges } from './syncQueue.js'
 
 export const LEGACY_KEYS = {
   tasks: 'todos.items',
@@ -39,7 +40,7 @@ export function readLegacy(storage) {
 // same moment can't both copy (and nothing already in IndexedDB is overwritten).
 export async function migrateFromDaybook(db, storage = globalThis.localStorage) {
   if (!storage) return null
-  return db.transaction('rw', db.tasks, db.journal, db.kv, async () => {
+  return db.transaction('rw', db.tasks, db.journal, db.kv, db.syncQueue, async () => {
     if (await db.kv.get(MIGRATION_KEY)) return null
     const legacy = readLegacy(storage)
     const [taskIds, entryIds] = await Promise.all([
@@ -53,6 +54,11 @@ export async function migrateFromDaybook(db, storage = globalThis.localStorage) 
     await db.tasks.bulkPut(tasks)
     await db.journal.bulkPut(journal)
     if (!(await db.kv.get('settings'))) await db.kv.put({ key: 'settings', value: legacy.settings })
+    // Queued only if this device is already linked to an account.
+    await queueChanges(db, [
+      ...tasks.map((t) => ({ table: 'tasks', id: t.id, op: 'put' })),
+      ...journal.map((e) => ({ table: 'journal', id: e.id, op: 'put' })),
+    ])
     const report = { at: Date.now(), tasks: tasks.length, journal: journal.length, skipped: legacy.skipped }
     await db.kv.put({ key: MIGRATION_KEY, value: report })
     return report

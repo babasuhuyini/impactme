@@ -3,6 +3,7 @@
 
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { accountsAvailable } from '../../lib/supabase.js'
+import BringData from './BringData.jsx'
 import Consent from './Consent.jsx'
 import { PrivacyPolicy, Terms } from './Legal.jsx'
 import { ConfirmEmail, CreateAccount, EmailStep, NewPassword, PasswordStep, ResetPassword, Welcome } from './SignIn.jsx'
@@ -28,6 +29,7 @@ export default function AccountRoutes() {
           <Route path="/account/reset" element={<ResetPassword />} />
           <Route path="/account/new-password" element={<NewPassword />} />
           <Route path="/account/consent" element={<Consent />} />
+          <Route path="/account/bring-data" element={<BringData />} />
         </>
       )}
       <Route path="*" element={<Navigate to="/" replace />} />

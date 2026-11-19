@@ -46,7 +46,7 @@ function fakeSession() {
 
 // A fake Supabase: email sign-in, and the consents table.
 async function fakeSupabase(page) {
-  const calls = { consentInserts: [] }
+  const calls = { consentInserts: [], upserts: {} }
   await page.route(`${SUPABASE}/**`, async (route) => {
     const req = route.request()
     const url = new URL(req.url())
@@ -63,6 +63,13 @@ async function fakeSupabase(page) {
     if (url.pathname === '/rest/v1/consents' && req.method() === 'GET') return json(200, [])
     if (url.pathname === '/rest/v1/consents' && req.method() === 'POST') {
       calls.consentInserts.push(req.postDataJSON())
+      return json(201)
+    }
+    // Sync: an empty account that accepts uploads.
+    const table = url.pathname.match(/^\/rest\/v1\/(tasks|journal_entries|projects|user_settings)$/)?.[1]
+    if (table && req.method() === 'GET') return json(200, [])
+    if (table && req.method() === 'POST') {
+      ;(calls.upserts[table] ??= []).push(...[].concat(req.postDataJSON()))
       return json(201)
     }
     return json(404, { message: 'not faked' })
@@ -226,4 +233,32 @@ test.describe('on a phone', () => {
     await shot(page, 'phone-create')
     await expect(page.locator('.auth-icon')).toHaveCount(0)
   })
+})
+
+test('first sign-in with data on this device asks first, then adds it to the account', async ({ page }) => {
+  const problems = watchConsole(page)
+  const calls = await fakeSupabase(page)
+  await page.goto('./#/tasks')
+  await page.getByLabel('New task').fill('Buy plantains')
+  await page.keyboard.press('Enter')
+  await expect(page.getByText('Buy plantains')).toBeVisible()
+
+  await page.goto('./#/account/email')
+  await page.getByLabel('Email').fill(EMAIL)
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD)
+  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.getByText('I’m 16 or older.').click()
+  await page.locator('.consent-item').nth(1).click({ position: { x: 20, y: 20 } })
+  await page.getByRole('button', { name: 'Continue' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Bring this device’s data with you?' })).toBeVisible()
+  await expect(page.locator('.bring-row').filter({ hasText: 'Tasks' })).toContainText('1')
+  await shot(page, 'bring-data')
+  await page.getByRole('button', { name: 'Add to My Account' }).click()
+
+  await expect(page.locator('.shell')).toBeVisible()
+  await expect.poll(() => (calls.upserts.tasks ?? []).map((r) => r.data?.title)).toContain('Buy plantains')
+  await expect.poll(() => (calls.upserts.user_settings ?? []).length).toBeGreaterThan(0)
+  expect(problems).toEqual([])
 })

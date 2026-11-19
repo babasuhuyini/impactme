@@ -41,7 +41,8 @@ import {
   useNotificationPermission,
 } from '../reminders/notifications.js'
 import { applyUpdate, checkForUpdate, promptInstall, usePWA } from '../pwa.js'
-import { signOut, useAccount } from '../data/account.js'
+import { useAccount } from '../data/account.js'
+import { addEarlierDataNow, signOutDevice, syncNow } from '../data/sync.js'
 
 const THEMES = [
   ['system', 'System', MonitorIcon],
@@ -115,15 +116,69 @@ function Segmented({ label, value, options, onChange }) {
   )
 }
 
-// Signed out: the way in to sign-in. Signed in: who, and Sign Out. The full
-// Account screen (sync, privacy, delete account) comes with sync.
+// Signed out: the way in to sign-in (or, if a session expired while this
+// device is linked, "Sign in again"). Signed in: who, sync status, Sign Out.
+// The full Account screen (privacy, delete account) comes in Phase 5.
 function AccountSection() {
   const account = useAccount()
   const navigate = useNavigate()
+  const [confirm, setConfirm] = useState(null) // { pending, localJournal } before signing out
   const [busy, setBusy] = useState(false)
   if (account.status === 'unavailable' || account.status === 'loading') return null
 
+  const out = async (force = false) => {
+    setBusy(true)
+    const result = await signOutDevice({ force })
+    setBusy(false)
+    if (result.done) {
+      setConfirm(null)
+      showToast('Signed out. Your account’s data was removed from this device.')
+    } else setConfirm(result)
+  }
+
+  const signOutDialog = (
+    <Dialog open={Boolean(confirm)} onClose={() => setConfirm(null)} title="Sign out?" size="sm">
+      {confirm?.pending > 0 && (
+        <p className="confirm-message">
+          {confirm.pending === 1 ? '1 change hasn’t' : `${confirm.pending} changes haven’t`} synced yet. If you sign
+          out now, {confirm.pending === 1 ? 'it’ll' : 'they’ll'} be lost.
+        </p>
+      )}
+      {confirm?.localJournal > 0 && (
+        <p className="confirm-message">
+          Journal sync is off, so your {confirm.localJournal === 1 ? 'journal entry is' : `${confirm.localJournal} journal entries are`}{' '}
+          only on this device. Signing out removes {confirm.localJournal === 1 ? 'it' : 'them'}. Download a copy of your data first if you
+          want to keep {confirm.localJournal === 1 ? 'it' : 'them'}.
+        </p>
+      )}
+      <footer className="dialog-foot">
+        <button type="button" className="btn ghost" onClick={() => setConfirm(null)} autoFocus>
+          Cancel
+        </button>
+        <button type="button" className="btn danger" onClick={() => out(true)} disabled={busy}>
+          Sign Out Anyway
+        </button>
+      </footer>
+    </Dialog>
+  )
+
   if (account.status === 'signed-out') {
+    if (account.reauth) {
+      return (
+        <Section title="Account" description="Your sign-in on this device has ended.">
+          <p className="settings-note account-warning">Sign in again to keep syncing. Your data is still on this device.</p>
+          <div className="actions">
+            <button className="btn primary" onClick={() => navigate('/account/email')}>
+              Sign In Again
+            </button>
+            <button className="btn danger-text" onClick={() => out(false)} disabled={busy}>
+              Remove Account Data From This Device
+            </button>
+          </div>
+          {signOutDialog}
+        </Section>
+      )
+    }
     return (
       <Section title="Account">
         <button className="account-cta" onClick={() => navigate('/welcome')}>
@@ -138,12 +193,6 @@ function AccountSection() {
   }
 
   const { user } = account
-  const out = async () => {
-    setBusy(true)
-    const { error } = await signOut()
-    setBusy(false)
-    if (error) showToast(error, { tone: 'error' })
-  }
   return (
     <Section title="Account" description={user.provider === 'google' ? 'Signed in with Google.' : 'Signed in with email.'}>
       <div className="account-who">
@@ -155,12 +204,62 @@ function AccountSection() {
           <span>{user.email}</span>
         </span>
       </div>
+      <SyncStatus account={account} />
+      {account.earlierData && <EarlierData />}
       <div className="actions">
-        <button className="btn secondary" onClick={out} disabled={busy}>
+        <button className="btn secondary" onClick={() => out(false)} disabled={busy}>
           {busy ? 'Signing out…' : 'Sign Out'}
         </button>
       </div>
+      {signOutDialog}
     </Section>
+  )
+}
+
+function SyncStatus({ account }) {
+  const { syncStatus, syncError, lastSyncedAt } = account
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => tick((n) => n + 1), 30000)
+    return () => clearInterval(timer)
+  }, [])
+  let text
+  if (syncStatus === 'syncing') text = 'Syncing…'
+  else if (syncStatus === 'offline') text = 'You’re offline. Changes will sync when you’re back online.'
+  else if (syncStatus === 'error') text = syncError
+  else text = lastSyncedAt ? `Last synced ${formatRelative(lastSyncedAt)}` : 'Not synced yet'
+  return (
+    <div className="account-sync">
+      <p className={syncStatus === 'error' ? 'settings-note account-warning' : 'settings-note'} role="status">
+        {text}
+      </p>
+      <button className="btn sm ghost" onClick={() => syncNow()} disabled={syncStatus === 'syncing'}>
+        Sync Now
+      </button>
+    </div>
+  )
+}
+
+function EarlierData() {
+  const [busy, setBusy] = useState(false)
+  const add = async () => {
+    setBusy(true)
+    try {
+      const { added, updated } = await addEarlierDataNow()
+      showToast(`Added ${added + updated} ${added + updated === 1 ? 'item' : 'items'} from this device.`)
+    } catch (error) {
+      console.warn('Adding earlier data failed', error?.name ?? 'unknown')
+      showToast('That didn’t work. Please try again.', { tone: 'error' })
+    }
+    setBusy(false)
+  }
+  return (
+    <div className="account-earlier">
+      <p className="settings-note">This device has data from before you signed in.</p>
+      <button className="btn secondary" onClick={add} disabled={busy}>
+        {busy ? 'Adding…' : 'Add This Device’s Earlier Data'}
+      </button>
+    </div>
   )
 }
 

@@ -88,10 +88,15 @@ export default function App() {
     const consent = account.consent.status
     if ((consent === 'needed' || consent === 'error') && pathname !== '/account/consent') {
       if (pathname !== '/privacy' && pathname !== '/terms') navigate('/account/consent', { replace: true })
-    } else if (consent === 'done' && (isSignInRoute(pathname) || pathname === '/account/consent')) {
+    } else if (consent === 'done' && account.device === 'choose') {
+      if (pathname !== '/account/bring-data') navigate('/account/bring-data', { replace: true })
+    } else if (
+      consent === 'done' &&
+      (isSignInRoute(pathname) || pathname === '/account/consent' || pathname === '/account/bring-data')
+    ) {
       navigate('/', { replace: true })
     }
-  }, [account.status, account.recovery, account.consent.status, pathname, navigate])
+  }, [account.status, account.recovery, account.consent.status, account.device, pathname, navigate])
 
   // A sign-in link that didn't work (expired, opened in another browser).
   useEffect(() => {

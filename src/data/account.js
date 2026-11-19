@@ -27,9 +27,19 @@ let state = {
   // The signed-in user's answers on "Before you start".
   // status: 'unknown' (not loaded) | 'needed' | 'done' | 'error'
   consent: { status: 'unknown', journal: false },
-  // Filled in by the sync engine (Phase 4).
+  // Filled in by the sync engine (sync.js).
   syncStatus: 'idle', // | 'syncing' | 'offline' | 'error'
+  syncError: null, // a plain-language message while syncStatus is 'error'
   lastSyncedAt: null,
+  // 'unknown' | 'linked' (syncing with this account) | 'choose' (first sign-in
+  // with data on this device: "Bring this device's data with you?")
+  device: 'unknown',
+  counts: null, // { tasks, projects, journal } for the choose screen
+  // Signed out without choosing to (session expired) while this device is
+  // still linked: "Sign in again to keep syncing".
+  reauth: false,
+  // A snapshot from "Not Now" exists: "Add this device's earlier data".
+  earlierData: false,
 }
 const listeners = new Set()
 const set = (patch) => {
@@ -45,8 +55,11 @@ export const subscribeAccount = (notify) => {
 export const useAccount = () => useSyncExternalStore(subscribeAccount, getAccount)
 
 export const clearNotice = () => set({ notice: null })
-// For the sync engine.
-export const setSyncState = (patch) => set(patch)
+// For the sync engine. Skips updates that change nothing, so listeners that
+// react to account changes can't loop.
+export const setSyncState = (patch) => {
+  if (Object.keys(patch).some((k) => state[k] !== patch[k])) set(patch)
+}
 
 /* Start ------------------------------------------------------------------ */
 
@@ -263,9 +276,20 @@ export async function setNewPassword(password) {
   return result
 }
 
-// Signs out of this device only. Phase 4 adds the final sync and clearing
-// this device's account data before this runs.
-export const signOut = () => call((auth) => auth.signOut({ scope: 'local' }))
+// Signs out of this device only (sync.js signOutDevice() wraps this with the
+// final push and clearing the account's data). Works offline: the library
+// removes the session here first, then tries to revoke it on the server, so a
+// failed request doesn't leave anyone signed in on a shared device.
+export async function signOut() {
+  if (!client) return { error: null }
+  try {
+    const { error } = await client.auth.signOut({ scope: 'local' })
+    if (error) console.warn('Sign-out request failed', error.code ?? error.name ?? 'unknown')
+  } catch (error) {
+    console.warn('Sign-out request failed', error?.name ?? 'unknown')
+  }
+  return { error: null }
+}
 
 /* Consent ---------------------------------------------------------------- */
 
@@ -335,6 +359,17 @@ export async function saveConsent({ age, terms, journal }) {
   )
   if (!result.error) {
     const consent = { status: 'done', journal: Boolean(journal) }
+    rememberConsent(state.user.id, consent)
+    set({ consent })
+  }
+  return result
+}
+
+// Settings › Account › "Sync journal entries": records the new answer.
+export async function setJournalConsent(granted) {
+  const result = await call(() => client.from('consents').insert({ kind: CONSENT.journal, granted: Boolean(granted) }))
+  if (!result.error) {
+    const consent = { ...state.consent, journal: Boolean(granted) }
     rememberConsent(state.user.id, consent)
     set({ consent })
   }

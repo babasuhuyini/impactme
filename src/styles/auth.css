@@ -496,3 +496,15 @@
     background: var(--bg-subtle);
   }
 }
+
+/* Bring this device's data with you? */
+.bring-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 16px;
+  font-size: 15px;
+}
+
+.bring-row + .bring-row {
+  border-top: 1px solid var(--auth-ring);
+}

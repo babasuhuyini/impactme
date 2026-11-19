@@ -6,6 +6,7 @@ import '@fontsource-variable/literata/opsz.css'
 import App from './App.jsx'
 import { showToast } from './components/Toast.jsx'
 import { initAccount } from './data/account.js'
+import { startSync } from './data/sync.js'
 import { initStore, onStorageError, requestPersistence } from './data/store.js'
 import { setupPWA } from './pwa.js'
 import './styles/base.css'
@@ -60,7 +61,9 @@ initStore()
     if (!/firefox/i.test(navigator.userAgent)) requestPersistence()
     setupPWA()
     // Accounts are optional; if this fails the app still works on this device.
-    initAccount().catch((error) => console.warn('Account start failed', error?.name ?? 'unknown'))
+    initAccount()
+      .then(() => startSync())
+      .catch((error) => console.warn('Account start failed', error?.name ?? 'unknown'))
   })
   .catch((error) => {
     console.error(error)
