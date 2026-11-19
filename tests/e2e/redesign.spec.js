@@ -10,8 +10,12 @@ async function shot(page, name) {
 }
 
 async function quickAdd(page, text) {
-  await page.keyboard.press('q')
   const dialog = page.getByRole('dialog', { name: 'Quick add' })
+  // Right after the first load the shortcut can be missed; press again if so.
+  await expect(async () => {
+    if (!(await dialog.isVisible())) await page.keyboard.press('q')
+    await expect(dialog).toBeVisible({ timeout: 2000 })
+  }).toPass({ timeout: 20_000 })
   await dialog.getByLabel('Task name').fill(text)
   await page.keyboard.press('Enter')
   await expect(dialog).toBeHidden()
@@ -69,4 +73,31 @@ test('desktop task list: rows in a white card, views in the sidebar', async ({ p
   await expect(row.locator('.row-flag')).toHaveText('High priority')
   await expect(row.locator('.todo-meta')).toContainText('#traceability')
   await shot(page, 'desk-tasks')
+})
+
+test.describe('task details on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('a sheet with Cancel / Details / Done; Cancel undoes, Done keeps', async ({ page }) => {
+    await page.goto('./#/tasks/all')
+    await expect(page.locator('.main')).toBeVisible({ timeout: 20_000 })
+    await page.getByLabel('New task').fill('Water the plants today')
+    await page.keyboard.press('Enter')
+    await page.locator('.todo-body', { hasText: 'Water the plants' }).click()
+
+    const sheet = page.getByRole('dialog', { name: 'Edit task' })
+    await expect(sheet.getByRole('heading', { name: 'Details' })).toBeVisible()
+    await expect(sheet.getByRole('checkbox', { name: 'Add a date' })).toBeChecked()
+    await shot(page, 'phone-sheet')
+
+    await sheet.getByLabel('Name').fill('Water the garden')
+    await sheet.getByRole('button', { name: 'Cancel' }).click()
+    await expect(sheet).toBeHidden()
+    await expect(page.locator('.todo', { hasText: 'Water the plants' })).toBeVisible()
+
+    await page.locator('.todo-body', { hasText: 'Water the plants' }).click()
+    await sheet.getByLabel('Name').fill('Water the garden')
+    await sheet.getByRole('button', { name: 'Done' }).click()
+    await expect(page.locator('.todo', { hasText: 'Water the garden' })).toBeVisible()
+  })
 })

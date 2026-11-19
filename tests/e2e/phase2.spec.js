@@ -104,7 +104,9 @@ test('task editor: projects, subtasks, custom repeats and unsaved changes', asyn
   await expect(editor.locator('.repeat-picker .field-hint')).toHaveText('Every 2 weeks on Mon, Wed')
   await editor.getByLabel('Category').fill('Home care')
   await shot(page, 'p2-editor')
-  await editor.getByRole('button', { name: 'Save' }).click()
+  // Changes save as you type; closing just closes.
+  await expect(editor.getByRole('status')).toHaveText('Saved')
+  await editor.getByRole('button', { name: 'Close' }).click()
   await expect(editor).toBeHidden()
 
   await expect(row).toContainText('0 of 2 subtasks')
@@ -112,12 +114,21 @@ test('task editor: projects, subtasks, custom repeats and unsaved changes', asyn
   await expect(row).toContainText('Every 2 weeks on Mon, Wed')
   await shot(page, 'p2-project')
 
-  // Esc with unsaved changes asks first.
+  // A rename saves straight away; Undo after closing puts it back.
   await row.locator('.todo-body').click()
   await editor.getByLabel('Name').fill('Changed my mind')
+  await expect(page.locator('.todo', { hasText: 'Changed my mind' })).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(editor.getByText('Discard your changes?')).toBeVisible()
-  await editor.getByRole('button', { name: 'Discard' }).click()
+  await expect(editor).toBeHidden()
+  await page.locator('.toast', { hasText: 'Changes saved' }).getByRole('button', { name: 'Undo' }).click()
+  await expect(row).toBeVisible()
+
+  // An empty name is never saved.
+  await row.locator('.todo-body').click()
+  await editor.getByLabel('Name').fill('')
+  await expect(editor.getByRole('status')).toHaveText('Not saved')
+  await expect(editor.getByRole('alert')).toContainText('Give the task a name.')
+  await page.keyboard.press('Escape')
   await expect(editor).toBeHidden()
   await expect(row).toBeVisible()
 

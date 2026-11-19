@@ -6,7 +6,7 @@ import QuickAdd from './components/QuickAdd.jsx'
 import ReminderTray from './components/ReminderTray.jsx'
 import ToastHost, { showToast } from './components/Toast.jsx'
 import TaskEditorHost from './components/tasks/TaskEditor.jsx'
-import { openTask } from './components/tasks/editorStore.js'
+import { openTask, useTaskEditor } from './components/tasks/editorStore.js'
 import Calendar from './pages/Calendar.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Journal from './pages/Journal.jsx'
@@ -38,6 +38,8 @@ export default function App() {
   const writing = /^\/journal\/.+/.test(pathname)
   // Phone screens with their own back link in place of the shared header.
   const ownHeader = /^\/tasks\/.+/.test(pathname)
+  // Task details open beside the page on desktop.
+  const taskOpen = Boolean(useTaskEditor())
 
 
   // Keep repeating time blocks on their current date, now and whenever the app comes back into view.
@@ -146,7 +148,7 @@ export default function App() {
   }
 
   return (
-    <div className="shell">
+    <div className={taskOpen ? 'shell panel-open' : 'shell'}>
       <Sidebar />
 
       <div className={writing ? 'main writing' : 'main'}>
