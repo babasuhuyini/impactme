@@ -5,7 +5,7 @@ import PriorityPicker from './todos/PriorityPicker.jsx'
 import ParsedChips from './tasks/ParsedChips.jsx'
 import { newTaskDraft } from './tasks/editorStore.js'
 import { showToast } from './Toast.jsx'
-import { BookIcon } from './icons.jsx'
+import { ArrowRightIcon, BookIcon } from './icons.jsx'
 import { tasks, useProjects } from '../data/store.js'
 import { addTask } from '../data/actions.js'
 import { parseQuickAdd } from '../lib/parse.js'
@@ -77,10 +77,12 @@ function QuickAddForm({ onDone, onWriteJournal }) {
       <label className="sr-only" htmlFor="quick-add-title">
         Task name
       </label>
-      <input
+      <div className="quick-add-row">
+        <span className="quick-add-circle" aria-hidden="true" />
+        <input
         id="quick-add-title"
         ref={inputRef}
-        className="input quick-add-input"
+        className="bare quick-add-input"
         value={text}
         onChange={(e) => {
           setText(e.target.value)
@@ -92,7 +94,8 @@ function QuickAddForm({ onDone, onWriteJournal }) {
         autoComplete="off"
         aria-invalid={Boolean(error)}
         aria-describedby={error ? 'quick-add-error' : 'quick-add-help'}
-      />
+        />
+      </div>
       {error ? (
         <p id="quick-add-error" className="field-error">
           {error}
@@ -105,6 +108,11 @@ function QuickAddForm({ onDone, onWriteJournal }) {
         )
       )}
       <ParsedChips parsed={parsed} onIgnore={ignoreKind} />
+      {text.trim() && parsed.title && parsed.title !== text.trim() && (
+        <p className="quick-add-preview">
+          Saves as <strong>{parsed.title}</strong>
+        </p>
+      )}
 
       <div className="quick-add-options">
         <DuePicker value={fields.dueDate} onChange={(dueDate) => override(dueDate ? { dueDate } : { dueDate: null, startTime: null, endTime: null, recurrence: null })} />
@@ -156,18 +164,16 @@ function QuickAddForm({ onDone, onWriteJournal }) {
         )}
       </div>
 
-      <footer className="dialog-foot">
-        <div className="quick-add-links">
-          <button type="button" className="btn ghost" onClick={onWriteJournal}>
-            <BookIcon width={16} height={16} />
-            Journal instead
-          </button>
-          <button type="button" className="btn ghost" onClick={moreOptions}>
-            More options
-          </button>
-        </div>
-        <button type="submit" className="btn primary">
-          Add task
+      <footer className="quick-add-foot">
+        <button type="button" className="text-btn" onClick={onWriteJournal}>
+          <BookIcon width={16} height={16} />
+          Journal instead
+        </button>
+        <button type="button" className="text-btn" onClick={moreOptions}>
+          More options
+        </button>
+        <button type="submit" className="send-btn" aria-label="Add task" title="Add task (Enter)">
+          <ArrowRightIcon width={20} height={20} strokeWidth={2.4} />
         </button>
       </footer>
     </form>
