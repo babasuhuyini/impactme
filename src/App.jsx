@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import Journal from './pages/Journal.jsx'
 import Todos from './pages/Todos.jsx'
 import Settings from './pages/Settings.jsx'
+import Search from './pages/Search.jsx'
 import useJournal from './hooks/useJournal.js'
 import { rollForwardBlocks } from './data/actions.js'
 import { clearNotice, getDeleteIntent, useAccount } from './data/account.js'
@@ -19,7 +20,7 @@ import { journal, projects, tasks } from './data/store.js'
 import AccountRoutes, { isAccountRoute, isSignInRoute } from './pages/account/AccountRoutes.jsx'
 import { welcomeDismissed } from './pages/account/SignIn.jsx'
 import { startReminders } from './reminders/scheduler.js'
-import { BrandMark, PlusIcon } from './components/icons.jsx'
+import { BrandMark, PlusIcon, SearchIcon } from './components/icons.jsx'
 
 
 const isTyping = (el) => el?.closest('input, textarea, select, [contenteditable="true"], dialog[open]')
@@ -124,6 +125,8 @@ export default function App() {
   // Attached once, before the first paint, so a key pressed straight away still works.
   const newEntryRef = useRef(newEntry)
   newEntryRef.current = newEntry
+  const navigateRef = useRef(navigate)
+  navigateRef.current = navigate
   useLayoutEffect(() => {
     function onKey(e) {
       if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return
@@ -134,6 +137,9 @@ export default function App() {
       } else if (key === 'j') {
         e.preventDefault()
         newEntryRef.current()
+      } else if (key === '/') {
+        e.preventDefault()
+        navigateRef.current('/search')
       }
     }
     document.addEventListener('keydown', onKey)
@@ -159,6 +165,14 @@ export default function App() {
           <div className="topbar-actions">
             <button
               className="icon-btn topbar-btn"
+              onClick={() => navigate('/search')}
+              aria-label="Search (/)"
+              title="Search (/)"
+            >
+              <SearchIcon width={18} height={18} />
+            </button>
+            <button
+              className="icon-btn topbar-btn"
               onClick={() => setQuickAddOpen(true)}
               aria-label="Quick add (Q)"
               title="Quick add (Q)"
@@ -170,9 +184,14 @@ export default function App() {
         {/* Phones: the brand and a round + button above each screen. */}
         <header className={ownHeader ? 'phone-bar hidden' : 'phone-bar'}>
           <BrandMark size={28} className="brand-mark" />
-          <button className="round-btn primary" onClick={() => setQuickAddOpen(true)} aria-label="Quick add">
-            <PlusIcon width={18} height={18} strokeWidth={2.2} />
-          </button>
+          <div className="phone-bar-actions">
+            <button className="round-btn" onClick={() => navigate('/search')} aria-label="Search">
+              <SearchIcon width={18} height={18} strokeWidth={2.2} />
+            </button>
+            <button className="round-btn primary" onClick={() => setQuickAddOpen(true)} aria-label="Quick add">
+              <PlusIcon width={18} height={18} strokeWidth={2.2} />
+            </button>
+          </div>
         </header>
 
         <Routes>
@@ -183,6 +202,7 @@ export default function App() {
           <Route path="/todos/:view?" element={<LegacyTodos />} />
           <Route path="/journal/:entryId?" element={<Journal />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/search" element={<Search />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 

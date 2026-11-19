@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import ProjectDialog from './tasks/ProjectDialog.jsx'
 import { useJournalEntries, useProjects, useTasks } from '../data/store.js'
-import { BookIcon, BrandMark, CalendarIcon, HomeIcon, ListIcon, PlusIcon, SlidersIcon } from './icons.jsx'
+import { BookIcon, BrandMark, CalendarIcon, HomeIcon, ListIcon, PlusIcon, SearchIcon, SlidersIcon } from './icons.jsx'
 import { VIEWS, isOpenTask } from '../lib/todos.js'
 
 const TASK_VIEWS = ['inbox', 'today', 'upcoming', 'overdue', 'completed']
@@ -23,6 +23,23 @@ export default function Sidebar() {
         <BrandMark size={28} className="brand-mark" />
         <span className="brand-name">ImpactMe</span>
       </div>
+
+      {/* Search everything on this device (tasks, journal, projects). */}
+      <form
+        role="search"
+        onSubmit={(e) => {
+          e.preventDefault()
+          const q = new FormData(e.currentTarget).get('q').trim()
+          navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search')
+          e.currentTarget.reset()
+        }}
+      >
+        <label className="side-search">
+          <SearchIcon width={15} height={15} />
+          <span className="sr-only">Search</span>
+          <input name="q" type="search" placeholder="Search" enterKeyHint="search" />
+        </label>
+      </form>
 
       <nav className="side-nav" aria-label="Main">
         <NavLink to="/" end className={linkClass('side-link')}>

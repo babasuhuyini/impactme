@@ -63,3 +63,10 @@ export function computeStreak(entries) {
   }
   return streak
 }
+
+// True if an entry's title, text, gratitude or tags contain the query.
+export function entryMatchesQuery(entry, query) {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return [entry.title, entry.body, entry.gratitude, ...entry.tags].some((field) => field.toLowerCase().includes(q))
+}

@@ -130,3 +130,38 @@ test('journal: stats card, week groups, and the entry with pills and a gratitude
   await expect(page.locator('.journal-stats')).toBeVisible()
   await shot(page, 'phone-journal')
 })
+
+test('search finds tasks, journal entries and projects, from the sidebar and with /', async ({ page }) => {
+  await page.setViewportSize({ width: 1360, height: 860 })
+  await page.goto('./#/tasks')
+  await expect(page.locator('.main')).toBeVisible({ timeout: 20_000 })
+  await quickAdd(page, 'Call the harbour office #boats')
+  await page.goto('./#/journal')
+  await page.getByRole('button', { name: 'New entry' }).first().click()
+  await page.locator('.doc-title').fill('Harbour walk')
+  await page.locator('.doc-body').fill('Saw the boats come in.')
+
+  // From the sidebar field.
+  await page.locator('.side-search input').fill('harbour')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/#\/search\?q=harbour/)
+  await expect(page.getByRole('heading', { name: /^Tasks/ })).toBeVisible()
+  await expect(page.locator('.search-row', { hasText: 'Call the harbour office' })).toBeVisible()
+  await expect(page.locator('.search-row', { hasText: 'Harbour walk' })).toBeVisible()
+  await shot(page, 'desk-search')
+
+  // A task opens its details; an entry opens in the journal.
+  await page.locator('.search-row', { hasText: 'Call the harbour office' }).click()
+  await expect(page.getByRole('dialog', { name: 'Edit task' })).toBeVisible()
+  await page.getByRole('dialog', { name: 'Edit task' }).getByRole('button', { name: 'Close' }).click()
+  await page.locator('.search-row', { hasText: 'Harbour walk' }).click()
+  await expect(page.locator('.doc-title')).toHaveValue('Harbour walk')
+
+  // "/" opens search from anywhere; nothing found says so.
+  await page.goto('./#/')
+  await page.locator('.dash').click()
+  await page.keyboard.press('/')
+  await expect(page).toHaveURL(/#\/search$/)
+  await page.getByRole('searchbox', { name: 'Search tasks, journal and projects' }).fill('zebra')
+  await expect(page.locator('.search-hint')).toContainText('Nothing matches “zebra”')
+})

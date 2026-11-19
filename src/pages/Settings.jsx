@@ -74,6 +74,7 @@ const sampleTime = (hour12) =>
 const SHORTCUTS = [
   ['Q', 'Quick add a task (understands “tomorrow at 9am”, “every weekday”)'],
   ['J', 'Start a new journal entry'],
+  ['/', 'Search tasks, journal and projects'],
   ['Enter', 'Add a task or move from title to text'],
   ['Ctrl + Enter', 'Save a task you’re editing'],
   ['Alt + ↑ / ↓', 'Move a task up or down when sorted by My order'],

@@ -14,6 +14,7 @@ import {
   computeStreak,
   entrySnippet,
   entryTitle,
+  entryMatchesQuery,
   getMood,
 } from '../lib/journal.js'
 
@@ -37,13 +38,7 @@ function groupByWeek(entries) {
   return groups
 }
 
-function matchesQuery(entry, query) {
-  const q = query.trim().toLowerCase()
-  if (!q) return true
-  return [entry.title, entry.body, entry.gratitude, ...entry.tags].some((field) =>
-    field.toLowerCase().includes(q)
-  )
-}
+const matchesQuery = entryMatchesQuery
 
 export default function Journal() {
   const { entryId } = useParams()
