@@ -161,8 +161,8 @@ test('journal autosaves, survives reload, and deletion can be undone', async ({ 
 test('settings: name, theme, backup and restore', async ({ page }, testInfo) => {
   const errors = trackErrors(page)
   await page.goto('./#/settings')
-  await page.getByLabel('Preferred name').fill('Ama')
-  await page.getByLabel('Preferred name').press('Enter')
+  await page.getByLabel('Your name').fill('Ama')
+  await page.getByLabel('Your name').press('Enter')
   await page.getByRole('radiogroup', { name: 'Theme' }).last().getByRole('radio', { name: 'Dark' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 

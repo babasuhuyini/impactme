@@ -360,3 +360,294 @@
 .reauth .field {
   width: 100%;
 }
+
+/* ==========================================================================
+   UI upgrade: settings. Desktop: section titles above white cards.
+   Phones: small uppercase headings above white cards on the grey page.
+   ========================================================================== */
+.settings {
+  max-width: 660px;
+  padding: 34px clamp(16px, 4vw, 48px) 56px;
+}
+
+.settings-head .page-sub {
+  display: none;
+}
+
+.settings-head .page-title {
+  font-size: 34px;
+  letter-spacing: -0.035em;
+}
+
+.settings-section {
+  display: block;
+  margin-top: 26px;
+  padding: 0;
+  border: 0;
+}
+
+.settings-intro {
+  margin: 0 4px 8px;
+}
+
+.settings-intro h2 {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.settings-intro p {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.settings-body {
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--card-ring);
+}
+
+/* Labels and notes inside cards follow the design's sizes. */
+.settings-body .field > label,
+.settings-body .field-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.settings-body .settings-note {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.settings-body .switch-row strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settings-body .switch-row span {
+  font-size: 12px;
+}
+
+.settings-body .switch-row {
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* The switch sits on the right, like the design. */
+.settings-body .switch-row .switch {
+  order: 2;
+  margin-left: auto;
+}
+
+.settings-body .input,
+.settings-body .settings-select {
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-body .btn.secondary {
+  height: 30px;
+  border-radius: 9px;
+  background: var(--fill-2);
+  box-shadow: none;
+  font-weight: 700;
+}
+
+/* Profile: avatar + name */
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.profile-row .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-accent);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+/* Theme: preview thumbnails on desktop */
+.theme-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.theme-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.theme-thumb.active {
+  font-weight: 700;
+}
+
+.theme-preview {
+  display: flex;
+  width: 96px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: var(--card-ring);
+}
+
+.theme-thumb.active .theme-preview {
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+.theme-preview-side {
+  width: 28px;
+  background: #f4f6f5;
+}
+
+.theme-preview-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 10px;
+}
+
+.theme-preview-lines span {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(20, 32, 27, 0.4);
+}
+
+.theme-preview-lines span:first-child {
+  width: 70%;
+  background: #14201b;
+}
+
+.theme-preview-lines span:last-child {
+  width: 45%;
+  background: #0e8a6a;
+}
+
+.theme-preview.dark {
+  background: #17201d;
+}
+
+.theme-preview.dark .theme-preview-side {
+  background: #111816;
+}
+
+.theme-preview.dark .theme-preview-lines span {
+  background: rgba(230, 238, 234, 0.4);
+}
+
+.theme-preview.dark .theme-preview-lines span:first-child {
+  background: #e6eeea;
+}
+
+.theme-preview.system {
+  background: linear-gradient(90deg, #ffffff 50%, #17201d 50%);
+}
+
+.theme-preview.system .theme-preview-side {
+  background: #f4f6f5;
+}
+
+/* Phones -------------------------------------------------------------------- */
+@media (max-width: 860px) {
+  .settings {
+    padding: 2px 16px 24px;
+  }
+
+  .settings-head {
+    padding: 0 4px;
+  }
+
+  .settings-head .page-title {
+    font-size: 32px;
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+  }
+
+  .settings-section {
+    margin-top: 24px;
+  }
+
+  .settings-intro {
+    margin: 0 16px 7px;
+  }
+
+  .settings-intro h2 {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .settings-intro p {
+    display: none;
+  }
+
+  .settings-body {
+    box-shadow: none;
+  }
+
+  .settings-body .field > label,
+  .settings-body .field-label,
+  .settings-body .switch-row strong {
+    font-size: 17px;
+    font-weight: 400;
+  }
+
+  .profile-avatar {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+
+  /* Theme as a Light / Dark / System switch */
+  .theme-picker {
+    gap: 2px;
+    padding: 2px;
+    border-radius: 9px;
+    background: var(--fill);
+  }
+
+  .theme-thumb {
+    flex: 1;
+    height: 28px;
+    justify-content: center;
+    border-radius: 7px;
+  }
+
+  .theme-thumb.active {
+    background: var(--surface);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  }
+
+  .theme-preview {
+    display: none;
+  }
+}

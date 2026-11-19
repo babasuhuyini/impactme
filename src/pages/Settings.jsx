@@ -516,9 +516,13 @@ function ProfileSection() {
   const save = () => name.trim() !== settings.name && updateSettings({ name })
 
   return (
-    <Section title="Profile" description="Used to greet you on the dashboard.">
-      <div className="field">
-        <label htmlFor="settings-name">Preferred name</label>
+    <Section title="Profile" description="Used to greet you on Home.">
+      <div className="profile-row">
+        <span className="profile-avatar" aria-hidden="true">
+          {(settings.name || '?').trim().charAt(0).toUpperCase() || '?'}
+        </span>
+        <div className="field">
+        <label htmlFor="settings-name">Your name</label>
         <input
           id="settings-name"
           className="input"
@@ -530,8 +534,36 @@ function ProfileSection() {
           autoComplete="given-name"
           maxLength={60}
         />
+        </div>
       </div>
     </Section>
+  )
+}
+
+// Desktop: three preview thumbnails; phones: a segmented control (UI upgrade).
+function ThemePicker({ value, onChange }) {
+  return (
+    <div className="theme-picker" role="radiogroup" aria-label="Theme">
+      {['light', 'dark', 'system'].map((key) => THEMES.find(([option]) => option === key)).map(([option, label]) => (
+        <button
+          key={option}
+          role="radio"
+          aria-checked={value === option}
+          className={value === option ? 'theme-thumb active' : 'theme-thumb'}
+          onClick={() => onChange(option)}
+        >
+          <span className={`theme-preview ${option}`} aria-hidden="true">
+            <span className="theme-preview-side" />
+            <span className="theme-preview-lines">
+              <span />
+              <span />
+              <span />
+            </span>
+          </span>
+          <span className="theme-thumb-label">{label}</span>
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -542,7 +574,7 @@ function AppearanceSection() {
     <Section title="Appearance" description="System follows your device’s light or dark setting.">
       <div className="field">
         <span className="field-label">Theme</span>
-        <Segmented label="Theme" value={preference} options={THEMES} onChange={setTheme} />
+        <ThemePicker value={preference} onChange={setTheme} />
       </div>
       <div className="field">
         <span className="field-label">Time format</span>
