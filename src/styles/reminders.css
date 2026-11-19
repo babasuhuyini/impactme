@@ -207,17 +207,18 @@
   color: var(--text);
 }
 
+/* iOS-style switch, 51 by 31. */
 .switch {
   appearance: none;
   position: relative;
   flex-shrink: 0;
-  width: 36px;
-  height: 20px;
-  margin: 1px 0 0;
-  border-radius: var(--r-full);
-  background: var(--border-strong);
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 16px;
+  background: var(--switch-off);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.25s;
 }
 
 .switch::after {
@@ -225,12 +226,12 @@
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
+  width: 27px;
+  height: 27px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.15s var(--ease);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
+  transition: transform 0.25s cubic-bezier(0.3, 0.7, 0.3, 1);
 }
 
 .switch:checked {
@@ -238,7 +239,7 @@
 }
 
 .switch:checked::after {
-  transform: translateX(16px);
+  transform: translateX(20px);
 }
 
 .switch:focus-visible {

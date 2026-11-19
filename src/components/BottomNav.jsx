@@ -1,32 +1,32 @@
 import { NavLink } from 'react-router-dom'
-import { BookIcon, CalendarIcon, ChecklistIcon, DotsIcon, HomeIcon } from './icons.jsx'
+import { BookIcon, CalendarIcon, HomeIcon, ListIcon, SlidersIcon } from './icons.jsx'
 
 const linkClass = ({ isActive }) => (isActive ? 'bottom-link active' : 'bottom-link')
 
-// Phone navigation: the main places one tap away; everything else under More.
-export default function BottomNav({ onMore }) {
+// Phone navigation: the five places of the app, one tap away.
+export default function BottomNav() {
   return (
     <nav className="bottom-nav" aria-label="Main">
       <NavLink to="/" end className={linkClass}>
-        <HomeIcon width={22} height={22} />
+        <HomeIcon width={25} height={25} />
         <span>Home</span>
       </NavLink>
       <NavLink to="/tasks" className={linkClass}>
-        <ChecklistIcon width={22} height={22} />
+        <ListIcon width={25} height={25} />
         <span>Tasks</span>
       </NavLink>
       <NavLink to="/calendar" className={linkClass}>
-        <CalendarIcon width={22} height={22} />
+        <CalendarIcon width={25} height={25} />
         <span>Calendar</span>
       </NavLink>
       <NavLink to="/journal" className={linkClass}>
-        <BookIcon width={22} height={22} />
+        <BookIcon width={25} height={25} />
         <span>Journal</span>
       </NavLink>
-      <button className="bottom-link" onClick={onMore} aria-label="More: projects, settings and theme">
-        <DotsIcon width={22} height={22} />
-        <span>More</span>
-      </button>
+      <NavLink to="/settings" className={linkClass}>
+        <SlidersIcon width={25} height={25} />
+        <span>Settings</span>
+      </NavLink>
     </nav>
   )
 }

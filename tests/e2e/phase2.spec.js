@@ -19,7 +19,8 @@ function trackErrors(page) {
 
 async function ready(page, path = './') {
   await page.goto(path)
-  await expect(page.locator('.brand-name')).toBeVisible()
+  // The app has loaded once its main area is on screen (phones hide the sidebar).
+  await expect(page.locator('.main')).toBeVisible({ timeout: 20_000 })
 }
 
 async function quickAdd(page, text) {
@@ -271,8 +272,8 @@ test('calendar on a phone opens in day view without sideways scrolling', async (
   await ready(page)
   await quickAdd(page, 'Dentist today 3-4pm')
   await quickAdd(page, 'Team sync today 3:30-4:30pm')
-  // The closed drawer is inert, so only the bottom bar can be used.
-  await expect(page.locator('.sidebar')).toHaveAttribute('inert', '')
+  // Phones navigate with the tab bar; the desktop sidebar is hidden.
+  await expect(page.locator('.sidebar')).toBeHidden()
   await page.locator('.bottom-nav').getByRole('link', { name: 'Calendar' }).click()
   await expect(page.locator('.time-grid.cols-1')).toBeVisible()
   await expect(page.locator('.cal-event', { hasText: 'Dentist' })).toBeVisible()

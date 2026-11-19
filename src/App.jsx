@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import Sidebar from './components/Sidebar.jsx'
 import BottomNav from './components/BottomNav.jsx'
@@ -21,11 +21,6 @@ import { welcomeDismissed } from './pages/account/SignIn.jsx'
 import { startReminders } from './reminders/scheduler.js'
 import { BrandMark, PlusIcon } from './components/icons.jsx'
 
-const phoneQuery = matchMedia('(max-width: 860px)')
-const subscribePhone = (notify) => {
-  phoneQuery.addEventListener('change', notify)
-  return () => phoneQuery.removeEventListener('change', notify)
-}
 
 const isTyping = (el) => el?.closest('input, textarea, select, [contenteditable="true"], dialog[open]')
 
@@ -36,16 +31,12 @@ function LegacyTodos() {
 }
 
 export default function App() {
-  const [navOpen, setNavOpen] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const { pathname, search } = useLocation()
   const navigate = useNavigate()
   const { create } = useJournal()
   const writing = /^\/journal\/.+/.test(pathname)
-  const phone = useSyncExternalStore(subscribePhone, () => phoneQuery.matches)
 
-  // Close the mobile drawer whenever the route changes.
-  useEffect(() => setNavOpen(false), [pathname])
 
   // Keep repeating time blocks on their current date, now and whenever the app comes back into view.
   useEffect(() => {
@@ -153,22 +144,29 @@ export default function App() {
   }
 
   return (
-    <div className={navOpen ? 'shell nav-open' : 'shell'}>
-      <Sidebar
-        onQuickAdd={() => {
-          setNavOpen(false)
-          setQuickAddOpen(true)
-        }}
-        onNavigate={() => setNavOpen(false)}
-        // On phones the closed drawer is off screen; keep it away from keyboards and screen readers.
-        inert={phone && !navOpen}
-      />
-      <div className="scrim" onClick={() => setNavOpen(false)} />
+    <div className="shell">
+      <Sidebar />
 
       <div className={writing ? 'main writing' : 'main'}>
+        {/* Desktop: a slim bar with the actions every page shares. */}
         <header className="topbar">
-          <BrandMark size={24} className="brand-mark" />
-          <span className="topbar-title">ImpactMe</span>
+          <div className="topbar-actions">
+            <button
+              className="icon-btn topbar-btn"
+              onClick={() => setQuickAddOpen(true)}
+              aria-label="Quick add (Q)"
+              title="Quick add (Q)"
+            >
+              <PlusIcon width={18} height={18} />
+            </button>
+          </div>
+        </header>
+        {/* Phones: the brand and a round + button above each screen. */}
+        <header className="phone-bar">
+          <BrandMark size={28} className="brand-mark" />
+          <button className="round-btn primary" onClick={() => setQuickAddOpen(true)} aria-label="Quick add">
+            <PlusIcon width={18} height={18} strokeWidth={2.2} />
+          </button>
         </header>
 
         <Routes>
@@ -182,10 +180,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
-        <button className="fab" onClick={() => setQuickAddOpen(true)} aria-label="Quick add">
-          <PlusIcon width={24} height={24} strokeWidth={2.4} />
-        </button>
-        <BottomNav onMore={() => setNavOpen(true)} />
+        <BottomNav />
       </div>
 
       <QuickAdd open={quickAddOpen} onClose={() => setQuickAddOpen(false)} onWriteJournal={newEntry} />

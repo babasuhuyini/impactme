@@ -1,5 +1,6 @@
 /* ==========================================================================
-   App shell: sidebar + content area (bottom bar on phones)
+   App shell: sidebar + top bar + content on desktop; on phones a header per
+   screen and a frosted tab bar at the bottom.
    ========================================================================== */
 .shell {
   display: grid;
@@ -14,15 +15,15 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: var(--bg);
+  background: var(--page-desk);
 }
 
-/* Sidebar */
+/* Sidebar ------------------------------------------------------------------ */
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--s-5);
-  padding: var(--s-5) var(--s-3) var(--s-4);
+  gap: 16px;
+  padding: 18px 12px 14px;
   overflow-y: auto;
   border-right: 1px solid var(--sb-border);
   background: var(--sb-bg);
@@ -32,8 +33,8 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 var(--s-2);
+  gap: 9px;
+  padding: 0 8px;
 }
 
 .brand-mark {
@@ -42,98 +43,59 @@
 }
 
 .brand-name {
-  font-size: var(--fs-lg);
+  font-size: 17px;
   font-weight: 800;
-  letter-spacing: -0.03em;
-}
-
-.quick-add-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  width: 100%;
-  height: 40px;
-  padding: 0 var(--s-2) 0 var(--s-3);
-  border-radius: var(--r-md);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: var(--fs-base);
-  font-weight: 700;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 4px 12px color-mix(in srgb, var(--accent) 25%, transparent);
-  transition: background 0.15s, transform 0.1s;
-}
-
-.quick-add-btn:hover {
-  background: var(--accent-hover);
-}
-
-.quick-add-btn:active {
-  transform: translateY(1px);
-}
-
-.quick-add-btn kbd {
-  margin-left: auto;
-  background: color-mix(in srgb, var(--on-accent) 18%, transparent);
-  box-shadow: none;
-  color: var(--on-accent);
+  letter-spacing: -0.02em;
 }
 
 .side-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .side-link,
 .side-sublink {
   display: flex;
   align-items: center;
-  gap: var(--s-3);
-  border-radius: var(--r-md);
-  transition: background 0.15s, color 0.15s;
+  gap: 10px;
+  height: 32px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sb-text);
+  transition: background 0.15s;
 }
 
 .side-link {
-  height: 36px;
-  padding: 0 var(--s-3);
-  font-size: var(--fs-base);
-  font-weight: 600;
-  color: var(--sb-text);
+  padding: 0 10px;
+}
+
+/* Sub-items line up with the text of the item above (18px icon + 10px gap). */
+.side-sublink {
+  padding: 0 10px 0 38px;
 }
 
 .side-link svg {
   flex-shrink: 0;
-  color: var(--sb-muted);
-  transition: color 0.15s;
-}
-
-.side-sublink {
-  height: 30px;
-  padding: 0 var(--s-3) 0 42px;
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  color: var(--sb-muted);
+  color: var(--accent);
 }
 
 .side-link:hover,
 .side-sublink:hover {
   background: var(--sb-hover);
-  color: var(--sb-text);
 }
 
 .side-link.active,
 .side-sublink.active {
   background: var(--sb-active);
   color: var(--sb-active-text);
-}
-
-.side-link.active svg {
-  color: var(--sb-active-text);
+  font-weight: 600;
 }
 
 .side-count {
   margin-left: auto;
-  font-size: var(--fs-xs);
+  font-size: 13px;
   font-weight: 500;
   color: var(--sb-muted);
   font-variant-numeric: tabular-nums;
@@ -147,48 +109,59 @@
 .sidebar-foot {
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
   margin-top: auto;
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--sb-border);
 }
 
-.theme-toggle {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  padding: 3px;
-  border-radius: var(--r-md);
-  background: var(--sb-hover);
+/* Desktop top bar ------------------------------------------------------------ */
+.topbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 
-.theme-option {
+.topbar-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
-  height: 28px;
-  border-radius: var(--r-sm);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--sb-muted);
-  transition: background 0.15s, color 0.15s;
+  gap: 6px;
+  margin-left: auto;
 }
 
-.theme-option:hover {
-  color: var(--sb-text);
+.topbar-btn {
+  width: 34px;
+  height: 30px;
+  border-radius: 7px;
+  color: var(--text-2);
 }
 
-.theme-option.active {
-  background: var(--surface);
-  color: var(--sb-text);
-  box-shadow: var(--shadow-sm);
+/* Round 36px buttons in phone headers. */
+.round-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--fill);
+  color: var(--text);
+  transition: transform 0.1s, filter 0.15s;
+}
+
+.round-btn.primary {
+  background: var(--primary);
+  color: var(--on-accent);
+}
+
+.round-btn:active {
+  transform: scale(0.95);
 }
 
 /* Phone chrome (hidden on larger screens) */
-.topbar,
-.scrim,
-.bottom-nav,
-.fab {
+.phone-bar,
+.bottom-nav {
   display: none;
 }
 
@@ -197,115 +170,79 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 50;
-    width: min(280px, 84vw);
-    padding-top: calc(var(--s-5) + env(safe-area-inset-top));
-    padding-bottom: calc(var(--s-4) + env(safe-area-inset-bottom));
-    border-right: none;
-    transform: translateX(-100%);
-    transition: transform 0.25s var(--ease);
-  }
-
-  .nav-open .sidebar {
-    transform: none;
-    box-shadow: var(--shadow-lg);
-  }
-
-  .scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    background: rgba(8, 16, 13, 0.45);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s;
-  }
-
-  .nav-open .scrim {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
+  /* Phones navigate with the tab bar and the Tasks screen instead. */
+  .sidebar,
   .topbar {
+    display: none;
+  }
+
+  .main {
+    background: var(--page-phone);
+  }
+
+  .phone-bar {
     display: flex;
     flex-shrink: 0;
     align-items: center;
-    gap: var(--s-2);
-    height: calc(48px + env(safe-area-inset-top));
-    padding: env(safe-area-inset-top) var(--s-4) 0;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
+    justify-content: space-between;
+    height: calc(44px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 16px 0;
   }
 
-  .topbar-title {
-    font-size: var(--fs-md);
-    font-weight: 800;
-    letter-spacing: -0.025em;
-  }
-
+  /* Frosted, over the content, like the design. */
   .bottom-nav {
-    display: grid;
-    flex-shrink: 0;
-    grid-template-columns: repeat(5, 1fr);
-    padding: 0 var(--s-2) env(safe-area-inset-bottom);
+    display: flex;
+    align-items: flex-start;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    height: calc(49px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--border);
-    background: var(--bg);
+    background: var(--bar-bg);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
   }
 
   .bottom-link {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 2px;
-    height: 58px;
-    font-size: var(--fs-2xs);
+    gap: 3px;
+    padding-top: 8px;
+    font-size: 11px;
     font-weight: 600;
     color: var(--muted);
     transition: color 0.15s;
+  }
+
+  .bottom-link svg {
+    stroke-width: 1.8;
   }
 
   .bottom-link.active {
     color: var(--accent-ink);
   }
 
-  .fab {
-    display: grid;
-    place-items: center;
-    position: absolute;
-    right: calc(var(--s-4) + env(safe-area-inset-right));
-    bottom: calc(58px + var(--s-4) + env(safe-area-inset-bottom));
-    z-index: 30;
-    width: 54px;
-    height: 54px;
-    border-radius: 18px;
-    background: var(--accent);
-    color: var(--on-accent);
-    box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent), var(--shadow-md);
-    transition: transform 0.1s, background 0.15s;
-  }
-
-  .fab:active {
-    transform: scale(0.95);
+  .bottom-link.active svg {
+    color: var(--accent);
+    stroke-width: 2.1;
   }
 
   /* Writing an entry: give the editor the whole screen. */
-  .main.writing .topbar,
-  .main.writing .bottom-nav,
-  .main.writing .fab {
+  .main.writing .phone-bar,
+  .main.writing .bottom-nav {
     display: none;
   }
 
-  /* Leave room so the last item in a list isn't hidden behind the + button. */
+  /* Leave room so the last item isn't hidden behind the tab bar. */
   .page-scroll {
-    padding-bottom: 80px;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
 
   .toast {
-    bottom: calc(58px + var(--s-4) + env(safe-area-inset-bottom));
+    bottom: calc(49px + var(--s-4) + env(safe-area-inset-bottom));
   }
 }

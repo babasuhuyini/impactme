@@ -355,10 +355,8 @@
 }
 
 .side-section-head h2 {
-  font-size: var(--fs-2xs);
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--sb-muted);
 }
 

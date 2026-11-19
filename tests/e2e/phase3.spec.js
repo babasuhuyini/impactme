@@ -18,7 +18,8 @@ function trackErrors(page) {
 
 async function ready(page, path = './') {
   await page.goto(path)
-  await expect(page.locator('.brand-name')).toBeVisible()
+  // The app has loaded once its main area is on screen (phones hide the sidebar).
+  await expect(page.locator('.main')).toBeVisible({ timeout: 20_000 })
 }
 
 async function quickAdd(page, text) {

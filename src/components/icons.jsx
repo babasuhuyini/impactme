@@ -318,3 +318,19 @@ export const EyeOffIcon = (props) => (
     <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
   </svg>
 )
+
+// UI upgrade icons
+export const ListIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <path d="M4 6h1M4 12h1M4 18h1" />
+  </svg>
+)
+
+export const SlidersIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="9" cy="17" r="2" />
+  </svg>
+)

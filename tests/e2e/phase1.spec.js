@@ -50,7 +50,8 @@ test('Daybook data carries over and the dashboard summarises the day', async ({ 
   await page.setViewportSize({ width: 1360, height: 860 })
   await page.goto('./')
 
-  await expect(page.getByRole('heading', { level: 1 })).toContainText(/Good|Still up/)
+  // The first page load in a fresh browser can sit on the splash for a while.
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/Good|Still up/, { timeout: 20_000 })
   await expect(page.locator('.brand-name')).toHaveText('ImpactMe')
   await expect(page).toHaveTitle('ImpactMe')
   await expect(page.locator('.dash-task', { hasText: 'Send report' })).toBeVisible()
@@ -60,7 +61,7 @@ test('Daybook data carries over and the dashboard summarises the day', async ({ 
   await shot(page, 'dashboard-light')
 
   // Legacy priority 3 became High; the old localStorage copy is untouched.
-  await page.getByRole('link', { name: /My Tasks/ }).click()
+  await page.locator('.sidebar').getByRole('link', { name: /^Tasks/ }).click()
   await expect(page.locator('.todo', { hasText: 'Send report' }).locator('.priority-badge')).toHaveText('High')
   await expect(page.locator('.todo')).toHaveCount(4)
   const legacyStillThere = await page.evaluate(() => JSON.parse(localStorage.getItem('todos.items')).length)
@@ -212,14 +213,14 @@ test('settings: name, theme, backup and restore', async ({ page }, testInfo) => 
   expect(errors).toEqual([])
 })
 
-test('phone layout: bottom bar, + button, no sideways scrolling', async ({ context, page }) => {
+test('phone layout: tab bar, + button, no sideways scrolling', async ({ context, page }) => {
   const errors = trackErrors(page)
   await seedDaybook(context)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('./')
 
   await expect(page.locator('.bottom-nav')).toBeVisible()
-  await expect(page.locator('.sidebar')).not.toBeInViewport()
+  await expect(page.locator('.sidebar')).toBeHidden()
   await shot(page, 'm-dashboard')
 
   for (const route of ['./', './#/tasks', './#/journal', './#/settings']) {
@@ -229,22 +230,23 @@ test('phone layout: bottom bar, + button, no sideways scrolling', async ({ conte
     expect(overflow, `sideways scroll on ${route}`).toBe(false)
   }
 
-  await page.locator('.fab').click()
+  await page.locator('.phone-bar').getByRole('button', { name: 'Quick add' }).click()
   await expect(page.getByRole('dialog', { name: 'Quick add' })).toBeVisible()
   await shot(page, 'm-quick-add')
   await page.keyboard.press('Escape')
 
-  await page.getByRole('button', { name: /More/ }).click()
-  await expect(page.locator('.sidebar')).toBeInViewport()
-  await shot(page, 'm-drawer')
-  await page.locator('.sidebar').getByRole('link', { name: 'Settings' }).click()
-  await expect(page.locator('.sidebar')).not.toBeInViewport()
+  // Five tabs; Settings is one of them now (no drawer).
+  const tabs = page.locator('.bottom-nav')
+  await expect(tabs.getByRole('link')).toHaveText(['Home', 'Tasks', 'Calendar', 'Journal', 'Settings'])
+  await tabs.getByRole('link', { name: 'Settings' }).click()
+  await expect(page).toHaveURL(/#\/settings$/)
+  await expect(tabs.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page')
 
   // Writing gets the whole screen.
   await page.goto('./#/journal')
   await page.locator('.entry-item').first().click()
   await expect(page.locator('.bottom-nav')).toBeHidden()
-  await expect(page.locator('.fab')).toBeHidden()
+  await expect(page.locator('.phone-bar')).toBeHidden()
   await shot(page, 'm-editor')
   expect(errors).toEqual([])
 })
