@@ -2,9 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import MoodPicker from './MoodPicker.jsx'
 import EnergyPicker from './EnergyPicker.jsx'
 import TagInput from '../TagInput.jsx'
-import { ArrowLeftIcon, CalendarIcon, TrashIcon } from '../icons.jsx'
+import { CalendarIcon, ChevronLeftIcon, TrashIcon } from '../icons.jsx'
 import { formatRelative } from '../../lib/dates.js'
-import { countWords, isEmptyEntry, toDateKey } from '../../lib/journal.js'
+import { formatTime } from '../../lib/format.js'
+import { countWords, isEmptyEntry, parseDateKey, toDateKey } from '../../lib/journal.js'
 import { useSaveStatus } from '../../data/store.js'
 
 // Edits an entry in place; every change is saved automatically, like a note app.
@@ -33,8 +34,9 @@ export default function EntryEditor({ entry, knownTags, onChange, onDelete, onBa
   return (
     <article className="editor">
       <div className="editor-toolbar">
-        <button className="icon-btn back-btn" onClick={onBack} aria-label="Back to entries">
-          <ArrowLeftIcon />
+        <button className="back-btn" onClick={onBack} aria-label="Back to entries">
+          <ChevronLeftIcon width={22} height={22} strokeWidth={2.4} />
+          <span aria-hidden="true">Journal</span>
         </button>
         <label className="date-pill" title="Entry date">
           <CalendarIcon width={14} height={14} />
@@ -80,6 +82,10 @@ export default function EntryEditor({ entry, knownTags, onChange, onDelete, onBa
 
       <div className="editor-scroll">
         <div className="doc">
+          <p className="doc-meta">
+            {parseDateKey(entry.date).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+            {entry.createdAt ? ` · ${formatTime(entry.createdAt)}` : ''}
+          </p>
           <input
             ref={titleRef}
             className="bare doc-title"
@@ -97,15 +103,15 @@ export default function EntryEditor({ entry, knownTags, onChange, onDelete, onBa
 
           <div className="doc-props">
             <div className="prop">
-              <span className="prop-label">Mood</span>
+              <span className="prop-label sr-only">Mood</span>
               <MoodPicker value={entry.mood} onChange={(mood) => onChange({ mood })} />
             </div>
-            <div className="prop">
-              <span className="prop-label">Energy</span>
+            <div className="prop prop-pill">
+              <span className="prop-label sr-only">Energy</span>
               <EnergyPicker value={entry.energy} onChange={(energy) => onChange({ energy })} />
             </div>
             <div className="prop">
-              <span className="prop-label">Tags</span>
+              <span className="prop-label sr-only">Tags</span>
               <TagInput
                 value={entry.tags}
                 onChange={(tags) => onChange({ tags })}
@@ -137,6 +143,7 @@ export default function EntryEditor({ entry, knownTags, onChange, onDelete, onBa
 
           <p className="doc-footer">
             {words} {words === 1 ? 'word' : 'words'}
+            {saveStatus === 'saved' ? ' · Saved' : ''}
           </p>
         </div>
       </div>

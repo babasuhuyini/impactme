@@ -5,6 +5,8 @@ import '@fontsource-variable/plus-jakarta-sans'
 import '@fontsource-variable/literata/opsz.css'
 import App from './App.jsx'
 import { showToast } from './components/Toast.jsx'
+import { initAccount } from './data/account.js'
+import { startSync } from './data/sync.js'
 import { initStore, onStorageError, requestPersistence } from './data/store.js'
 import { setupPWA } from './pwa.js'
 import './styles/base.css'
@@ -17,6 +19,7 @@ import './styles/components.css'
 import './styles/task-editor.css'
 import './styles/calendar.css'
 import './styles/reminders.css'
+import './styles/auth.css'
 
 const root = createRoot(document.getElementById('root'))
 
@@ -57,6 +60,10 @@ initStore()
     // a prompt for this, so there it's left to the button in Settings.
     if (!/firefox/i.test(navigator.userAgent)) requestPersistence()
     setupPWA()
+    // Accounts are optional; if this fails the app still works on this device.
+    initAccount()
+      .then(() => startSync())
+      .catch((error) => console.warn('Account start failed', error?.name ?? 'unknown'))
   })
   .catch((error) => {
     console.error(error)

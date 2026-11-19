@@ -44,9 +44,21 @@
   --hover: #f1f4f2;
   --text: #14201b;
   --text-2: #3d4a44;
-  --muted: #66746e;
-  --border: #e4eae7;
-  --border-strong: #d0d9d5;
+  --muted: #5d6b65;
+  --border: #e1e7e4;
+  --border-strong: #d5ddd9;
+
+  /* UI upgrade: page backgrounds, fills and controls */
+  --page-phone: #eef2f0; /* phone screens: white cards on this */
+  --page-desk: #f6f8f7; /* desktop main area */
+  --fill: #e3e9e6; /* phone search, round icon buttons, segmented track */
+  --fill-2: #e6ebe8; /* desktop secondary buttons, fields, select buttons */
+  --check-border: #b9c4bf;
+  --switch-off: #dce3df;
+  --bar-bg: rgba(248, 250, 249, 0.86); /* frosted phone tab bar */
+  --primary: #0b7a5d; /* solid primary fills (white text passes contrast) */
+  --card-ring: 0 0 0 1px var(--border);
+  --card-shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(16, 32, 26, 0.04);
 
   /* Brand */
   --accent: #0e8a6a;
@@ -59,13 +71,13 @@
   --danger: #c93c31;
 
   /* Sidebar: quiet tint in light mode */
-  --sb-bg: #f4f7f5;
+  --sb-bg: #f4f6f5;
   --sb-text: #1d2a24;
-  --sb-muted: #66746e;
+  --sb-muted: #5d6b65;
   --sb-hover: rgba(20, 32, 27, 0.05);
-  --sb-active: #e2f0ea;
-  --sb-active-text: #0a7356;
-  --sb-border: #e3e9e6;
+  --sb-active: #e2e8e5;
+  --sb-active-text: #14201b;
+  --sb-border: #e1e7e4;
 
   --mood-1: #e0705f;
   --mood-2: #e8a04e;
@@ -94,14 +106,23 @@
   --text: #e6eeea;
   --text-2: #b6c3bd;
   --muted: #8a9993;
-  --border: #24302b;
+  --border: #26312d;
   --border-strong: #33413b;
+
+  --page-phone: #0d1311;
+  --page-desk: #0d1311;
+  --fill: #1e2925;
+  --fill-2: #222d29;
+  --check-border: #33413b;
+  --switch-off: #24302b;
+  --bar-bg: rgba(18, 26, 23, 0.86);
+  --primary: #34c79a;
 
   --accent: #34c79a;
   --accent-hover: #4fd6ab;
   --accent-soft: rgba(52, 199, 154, 0.14);
   --accent-ink: #5dd9b0;
-  --on-accent: #052a1d;
+  --on-accent: #0d1311;
   --highlight: #f0b257;
   --highlight-soft: rgba(240, 178, 87, 0.14);
   --danger: #f06b60;
@@ -110,8 +131,8 @@
   --sb-text: #e6eeea;
   --sb-muted: #8a9993;
   --sb-hover: rgba(255, 255, 255, 0.05);
-  --sb-active: rgba(52, 199, 154, 0.14);
-  --sb-active-text: #6fe0bb;
+  --sb-active: rgba(255, 255, 255, 0.07);
+  --sb-active-text: #e6eeea;
   --sb-border: rgba(255, 255, 255, 0.07);
 
   --mood-1: #ec8576;
@@ -248,13 +269,14 @@ select {
   font-size: var(--fs-sm);
 }
 
+/* #0B7A5D: white text on the brand green #0E8A6A fails contrast. */
 .btn.primary {
-  background: var(--accent);
+  background: var(--primary);
   color: var(--on-accent);
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  filter: brightness(1.08);
 }
 
 .btn.ghost {
@@ -628,20 +650,20 @@ kbd {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 2px;
-  padding: 3px;
-  border-radius: var(--r-md);
-  background: var(--surface-2);
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--fill);
 }
 
 .segment {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
+  height: 28px;
   padding: 0 var(--s-3);
-  border-radius: var(--r-sm);
+  border-radius: 7px;
   font-size: var(--fs-sm);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-2);
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
@@ -653,7 +675,8 @@ kbd {
 .segment.active {
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--border);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
 }
 
 .callout {

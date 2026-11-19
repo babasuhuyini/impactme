@@ -18,7 +18,8 @@ function trackErrors(page) {
 
 async function ready(page, path = './') {
   await page.goto(path)
-  await expect(page.locator('.brand-name')).toBeVisible()
+  // The app has loaded once its main area is on screen (phones hide the sidebar).
+  await expect(page.locator('.main')).toBeVisible({ timeout: 20_000 })
 }
 
 async function quickAdd(page, text) {
@@ -81,7 +82,7 @@ test('reminders: set them on a task, and without notifications they pop up in th
   await expect(editor.getByText('This task has no time, so reminders count from 9:00 AM')).toBeVisible()
   await expect(editor.getByText('Notifications aren’t on, so these will pop up inside ImpactMe')).toBeVisible()
   await shot(page, 'p3-editor')
-  await editor.getByRole('button', { name: 'Save' }).click()
+  await editor.getByRole('button', { name: 'Close' }).click()
   await expect(page.locator('.todo', { hasText: 'Pay rent' }).getByTitle('2 reminders')).toBeVisible()
 
   // 9:05: the reminder pops up inside the app.
@@ -152,7 +153,7 @@ test('reminders: with notifications allowed, they arrive as notifications with b
   await page.locator('.todo', { hasText: 'Stand-up' }).getByText('Stand-up').click()
   const edit = page.getByRole('dialog', { name: 'Edit task' })
   await edit.getByLabel('Add a reminder').selectOption({ label: 'At the time' })
-  await edit.getByRole('button', { name: 'Save' }).click()
+  await edit.getByRole('button', { name: 'Close' }).click()
   const second = await context.newPage()
   await second.goto('./#/')
   await page.clock.fastForward('05:00')

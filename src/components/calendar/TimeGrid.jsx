@@ -3,6 +3,10 @@ import { AlertIcon, CheckIcon, RepeatIcon } from '../icons.jsx'
 import { layoutDay } from '../../lib/calendar.js'
 import { fromMinutes, parseDateKey } from '../../lib/dates.js'
 import { formatClock, formatHour, formatTimeRange } from '../../lib/format.js'
+import { projects } from '../../data/store.js'
+
+// Events take their project's colour (UI upgrade); without one, their priority's.
+export const projectColor = (task) => (task.projectId ? projects.get(task.projectId)?.color : undefined)
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
 const DAY = 24 * 60
@@ -100,7 +104,14 @@ export default function TimeGrid({ days, events, today, nowMinutes, preview, dra
                   {formatTimeRange(fromMinutes(preview.start), fromMinutes(preview.end))}
                 </div>
               )}
-              {day === today && <div className="now-line" style={{ top: pct(nowMinutes) }} aria-hidden="true" />}
+              {day === today && (
+                <div
+                  className="now-line"
+                  style={{ top: pct(nowMinutes) }}
+                  data-time={formatClock(fromMinutes(nowMinutes)).replace(/\s?[AP]M$/i, '')}
+                  aria-hidden="true"
+                />
+              )}
             </div>
           ))}
         </div>
@@ -141,6 +152,7 @@ function TimedEvent({ placed, drag, dragging }) {
       tabIndex={0}
       className={eventClass('cal-event', event, [conflict && 'conflict', short && 'short', dragging && 'dragging'].filter(Boolean).join(' '))}
       data-priority={event.task.priority}
+      data-color={projectColor(event.task)}
       style={{
         top: pct(event.start),
         height: pct(Math.max(event.end - event.start, 15)),
@@ -182,6 +194,7 @@ export function EventChip({ event, drag, dragging, showTime = false }) {
       tabIndex={0}
       className={eventClass('cal-chip', event, dragging && 'dragging')}
       data-priority={event.task.priority}
+      data-color={projectColor(event.task)}
       onPointerDown={(e) => drag.start(e, event)}
       onKeyDown={(e) => e.key === 'Enter' && drag.open(event)}
       aria-label={eventLabel(event)}

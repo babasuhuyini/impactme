@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TimeGrid from '../components/calendar/TimeGrid.jsx'
 import MonthView from '../components/calendar/MonthView.jsx'
@@ -7,7 +7,8 @@ import UnscheduledPanel from '../components/calendar/UnscheduledPanel.jsx'
 import useCalendarDrag from '../components/calendar/useCalendarDrag.js'
 import { newTaskDraft, openTask } from '../components/tasks/editorStore.js'
 import { showToast } from '../components/Toast.jsx'
-import { AlertIcon, ChevronIcon, ChevronLeftIcon, DownloadIcon } from '../components/icons.jsx'
+import { AlertIcon, ChevronIcon, ChevronLeftIcon, DownloadIcon, GripIcon, PlusIcon } from '../components/icons.jsx'
+import usePhone from '../hooks/usePhone.js'
 import { tasks, updateSettings, useSettings, useTasks } from '../data/store.js'
 import { completeTask } from '../data/actions.js'
 import { downloadFile } from '../data/backup.js'
@@ -25,15 +26,6 @@ const VIEWS = [
 ]
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
-const narrowQuery = matchMedia('(max-width: 640px)')
-const useNarrow = () =>
-  useSyncExternalStore(
-    (notify) => {
-      narrowQuery.addEventListener('change', notify)
-      return () => narrowQuery.removeEventListener('change', notify)
-    },
-    () => narrowQuery.matches
-  )
 
 function useNowMinutes() {
   const [now, setNow] = useState(() => new Date())
@@ -42,6 +34,52 @@ function useNowMinutes() {
     return () => clearInterval(timer)
   }, [])
   return { today: toDateKey(now), minutes: now.getHours() * 60 + now.getMinutes() }
+}
+
+const monthName = (anchor) => parseDateKey(anchor).toLocaleDateString(undefined, { month: 'long' })
+
+// Desktop title (UI upgrade): "November 2026" for week and month.
+function CalendarTitle({ view, range, anchor }) {
+  if (view === 'week' || view === 'month') {
+    const date = parseDateKey(view === 'week' ? range.from : anchor)
+    return (
+      <>
+        {date.toLocaleDateString(undefined, { month: 'long' })} <span className="cal-year">{date.getFullYear()}</span>
+      </>
+    )
+  }
+  return rangeLabel(view, range, anchor)
+}
+
+// Phones: the week around the selected day, with a dot on days that have something.
+function WeekStrip({ days, selected, today, busy, onPick }) {
+  return (
+    <div className="week-strip" role="group" aria-label="Days this week">
+      {days.map((day) => {
+        const date = parseDateKey(day)
+        const label = date.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
+        const className = ['week-day', day === selected && 'selected', day === today && 'today'].filter(Boolean).join(' ')
+        return (
+          <button
+            key={day}
+            className={className}
+            onClick={() => onPick(day)}
+            aria-label={label}
+            aria-pressed={day === selected}
+            aria-current={day === today ? 'date' : undefined}
+          >
+            <span className="week-day-name" aria-hidden="true">
+              {date.toLocaleDateString(undefined, { weekday: 'narrow' })}
+            </span>
+            <span className="week-day-num" aria-hidden="true">
+              {date.getDate()}
+            </span>
+            <span className={busy.has(day) ? 'week-day-dot on' : 'week-day-dot'} aria-hidden="true" />
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 function rangeLabel(view, range, anchor) {
@@ -59,16 +97,17 @@ function rangeLabel(view, range, anchor) {
   }
 }
 
-export default function Calendar() {
+export default function Calendar({ onQuickAdd }) {
   const { view: viewParam, date: dateParam } = useParams()
   const navigate = useNavigate()
   const settings = useSettings()
-  const narrow = useNarrow()
+  const phone = usePhone()
   const allTasks = useTasks()
   const { today, minutes } = useNowMinutes()
+  // Phones open the unscheduled list as a sheet; desktop always shows it beside the grid.
   const [showUnscheduled, setShowUnscheduled] = useState(false)
 
-  const preferred = narrow && settings.calendarView === 'week' ? 'day' : settings.calendarView
+  const preferred = phone && settings.calendarView === 'week' ? 'day' : settings.calendarView
   const view = VIEWS.some(([key]) => key === viewParam) ? viewParam : preferred
   const anchor = DATE_RE.test(dateParam ?? '') ? dateParam : today
   const weekStart = resolveWeekStart(settings.weekStart)
@@ -79,6 +118,14 @@ export default function Calendar() {
   const overdue = allTasks.filter((t) => isOpenTask(t) && t.dueDate && t.dueDate < today && anchor <= today)
   const timeline = view === 'day' || view === 'week'
   const conflicts = timeline ? countConflicts(events, range.days) : 0
+  const panelOpen = timeline && (phone ? showUnscheduled : true)
+  // Phones, day view: the week strip shows dots for the whole week.
+  const week = rangeFor('week', anchor, weekStart)
+  const weekEvents = useMemo(
+    () => (phone && view === 'day' ? buildEvents(allTasks, week.from, week.to) : []),
+    [phone, view, allTasks, week.from, week.to]
+  )
+  const busyDays = useMemo(() => new Set(weekEvents.map((e) => e.date)), [weekEvents])
 
   const go = (nextView, date = anchor) => navigate(`/calendar/${nextView}/${date}`)
 
@@ -123,6 +170,24 @@ export default function Calendar() {
 
   return (
     <div className={`calendar-page view-${view}`}>
+      {/* Phones: back to the month, Today, and + */}
+      <div className="cal-phone-nav">
+        <button className="back-link" onClick={() => pickView('month')}>
+          <ChevronLeftIcon width={22} height={22} strokeWidth={2.4} />
+          {monthName(anchor)}
+        </button>
+        <div className="cal-phone-actions">
+          {anchor !== today && (
+            <button className="text-btn" onClick={() => go(view, today)}>
+              Today
+            </button>
+          )}
+          <button className="round-btn primary" onClick={onQuickAdd} aria-label="Quick add">
+            <PlusIcon width={18} height={18} strokeWidth={2.2} />
+          </button>
+        </div>
+      </div>
+
       <header className="cal-toolbar">
         <div className="cal-nav">
           <button className="btn secondary sm" onClick={() => go(view, today)}>
@@ -135,7 +200,7 @@ export default function Calendar() {
             <ChevronIcon width={18} height={18} />
           </button>
           <h1 className="cal-title" aria-live="polite">
-            {rangeLabel(view, range, anchor)}
+            <CalendarTitle view={view} range={range} anchor={anchor} />
           </h1>
         </div>
         <div className="cal-actions">
@@ -144,16 +209,6 @@ export default function Calendar() {
               <AlertIcon width={14} height={14} />
               {conflicts} overlapping
             </span>
-          )}
-          {timeline && (
-            <button
-              className={showUnscheduled ? 'btn secondary sm active' : 'btn secondary sm'}
-              aria-pressed={showUnscheduled}
-              onClick={() => setShowUnscheduled((v) => !v)}
-            >
-              Unscheduled
-              {unscheduled.length > 0 && <span className="tab-count">{unscheduled.length}</span>}
-            </button>
           )}
           <div className="segmented" role="radiogroup" aria-label="Calendar view">
             {VIEWS.map(([key, label]) => (
@@ -171,10 +226,22 @@ export default function Calendar() {
           <button className="icon-btn" onClick={exportCalendar} aria-label="Export to other calendar apps (.ics)" title="Export (.ics)">
             <DownloadIcon width={18} height={18} />
           </button>
+          <button className="icon-btn cal-quick-add" onClick={onQuickAdd} aria-label="Quick add (Q)" title="Quick add (Q)">
+            <PlusIcon width={18} height={18} />
+          </button>
         </div>
       </header>
 
-      <div className={showUnscheduled && timeline ? 'cal-body with-panel' : 'cal-body'}>
+      {phone && view === 'day' && (
+        <>
+          <WeekStrip days={week.days} selected={anchor} today={today} busy={busyDays} onPick={(day) => go('day', day)} />
+          <p className="cal-dayline">
+            {parseDateKey(anchor).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+        </>
+      )}
+
+      <div className={panelOpen ? 'cal-body with-panel' : 'cal-body'}>
         {timeline && (
           <TimeGrid
             days={range.days}
@@ -208,8 +275,16 @@ export default function Calendar() {
             onComplete={(task) => showToast('Task completed', { undo: completeTask(task) })}
           />
         )}
-        {showUnscheduled && timeline && <UnscheduledPanel tasks={unscheduled} drag={drag} />}
+        {panelOpen && <UnscheduledPanel tasks={unscheduled} drag={drag} onClose={phone ? () => setShowUnscheduled(false) : undefined} />}
       </div>
+
+      {/* Phones: a floating pill opens the unscheduled list. */}
+      {phone && timeline && !showUnscheduled && unscheduled.length > 0 && (
+        <button className="unscheduled-pill" onClick={() => setShowUnscheduled(true)}>
+          <GripIcon width={14} height={14} aria-hidden="true" />
+          {unscheduled.length} unscheduled
+        </button>
+      )}
     </div>
   )
 }

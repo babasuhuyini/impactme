@@ -28,22 +28,6 @@
   border-radius: 4px;
 }
 
-.project-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 600;
-  color: var(--text-2);
-}
-
-.project-chip::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
-  background: var(--pc);
-}
-
 .field-hint {
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -150,5 +134,180 @@
     bottom: calc(var(--s-4) * -1);
     margin-bottom: calc(var(--s-4) * -1);
     padding-bottom: var(--s-4);
+  }
+}
+
+/* ==========================================================================
+   UI upgrade: Quick add. Phones: a sheet from the bottom.
+   ========================================================================== */
+.quick-add {
+  gap: 0;
+}
+
+.quick-add-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quick-add-circle {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1.6px solid var(--check-border);
+  border-radius: 50%;
+}
+
+.quick-add-input {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  padding: 4px 0;
+  font-size: 20px;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  caret-color: var(--accent);
+}
+
+.quick-add > .field-error,
+.quick-add > .field-hint,
+.quick-add .parsed,
+.quick-add-preview {
+  margin: 10px 0 0 34px;
+}
+
+.quick-add-preview {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.quick-add-preview strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.quick-add-options {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* Options as soft buttons, green once set */
+.quick-add-options .input,
+.quick-add-options .select-inline,
+.quick-add-options .btn,
+.quick-add-options .segment {
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.quick-add-options .btn.active,
+.quick-add-options .segment.active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  box-shadow: none;
+}
+
+.quick-add-foot {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.text-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+
+.text-btn:hover {
+  color: var(--accent);
+}
+
+.send-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-accent);
+  transition: transform 0.1s, filter 0.15s;
+}
+
+/* The arrow points up, as in the design. */
+.send-btn svg {
+  transform: rotate(-90deg);
+}
+
+.send-btn:hover {
+  filter: brightness(1.08);
+}
+
+.send-btn:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 860px) {
+  .dialog:has(.quick-add) {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 40px);
+    margin: auto 0 0;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.18);
+  }
+
+  .dialog:has(.quick-add)[open] {
+    animation: sheet-in 0.28s cubic-bezier(0.3, 0.7, 0.3, 1);
+  }
+
+  .dialog:has(.quick-add)::backdrop {
+    background: rgba(10, 20, 16, 0.38);
+    backdrop-filter: none;
+  }
+
+  .dialog:has(.quick-add) .dialog-body {
+    padding: 8px 16px calc(34px + env(safe-area-inset-bottom));
+  }
+
+  /* A grabber instead of the title bar (the title stays for screen readers). */
+  .dialog:has(.quick-add) .dialog-head {
+    position: relative;
+    justify-content: center;
+    height: 15px;
+    margin: 0;
+  }
+
+  .dialog:has(.quick-add) .dialog-head::before {
+    content: '';
+    width: 36px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--border-strong);
+  }
+
+  .dialog:has(.quick-add) .dialog-head > * {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 }

@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import Dialog from '../components/Dialog.jsx'
 import { showToast } from '../components/Toast.jsx'
 import {
   AlertIcon,
+  ArrowRightIcon,
   BellIcon,
   BrandMark,
   CheckIcon,
@@ -39,6 +42,24 @@ import {
   useNotificationPermission,
 } from '../reminders/notifications.js'
 import { applyUpdate, checkForUpdate, promptInstall, usePWA } from '../pwa.js'
+import {
+  RECENT_SIGN_IN_MS,
+  clearDeleteIntent,
+  confirmWithGoogle,
+  confirmWithPassword,
+  getDeleteIntent,
+  lastSignInAt,
+  useAccount,
+} from '../data/account.js'
+import Turnstile, { captchaEnabled } from '../components/account/Turnstile.jsx'
+import {
+  addEarlierDataNow,
+  deleteAccount,
+  setDeviceSync,
+  setJournalSync,
+  signOutDevice,
+  syncNow,
+} from '../data/sync.js'
 
 const THEMES = [
   ['system', 'System', MonitorIcon],
@@ -53,6 +74,7 @@ const sampleTime = (hour12) =>
 const SHORTCUTS = [
   ['Q', 'Quick add a task (understands “tomorrow at 9am”, “every weekday”)'],
   ['J', 'Start a new journal entry'],
+  ['/', 'Search tasks, journal and projects'],
   ['Enter', 'Add a task or move from title to text'],
   ['Ctrl + Enter', 'Save a task you’re editing'],
   ['Alt + ↑ / ↓', 'Move a task up or down when sorted by My order'],
@@ -67,6 +89,7 @@ export default function Settings() {
           <h1 className="page-title">Settings</h1>
           <p className="page-sub">Preferences are saved automatically.</p>
         </header>
+        <AccountSection />
         <ProfileSection />
         <AppearanceSection />
         <CalendarSection />
@@ -111,15 +134,396 @@ function Segmented({ label, value, options, onChange }) {
   )
 }
 
+// Signed out: the way in to sign-in (or, if a session expired while this
+// device is linked, "Sign in again"). Signed in: who, sync status, Sign Out.
+// The full Account screen (privacy, delete account) comes in Phase 5.
+function AccountSection() {
+  const account = useAccount()
+  const navigate = useNavigate()
+  const [confirm, setConfirm] = useState(null) // { pending, localJournal } before signing out
+  const [busy, setBusy] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  // Back from a Google sign-in to confirm a delete: reopen the dialog.
+  const [resume] = useState(getDeleteIntent)
+  useEffect(() => {
+    if (resume) setDeleting(true)
+  }, [resume])
+  if (account.status === 'unavailable' || account.status === 'loading') return null
+
+  const out = async (force = false) => {
+    setBusy(true)
+    const result = await signOutDevice({ force })
+    setBusy(false)
+    if (result.done) {
+      setConfirm(null)
+      showToast('Signed out. Your account’s data was removed from this device.')
+    } else setConfirm(result)
+  }
+
+  const signOutDialog = (
+    <Dialog open={Boolean(confirm)} onClose={() => setConfirm(null)} title="Sign out?" size="sm">
+      {confirm?.pending > 0 && (
+        <p className="confirm-message">
+          {confirm.pending === 1 ? '1 change hasn’t' : `${confirm.pending} changes haven’t`} synced yet. If you sign
+          out now, {confirm.pending === 1 ? 'it’ll' : 'they’ll'} be lost.
+        </p>
+      )}
+      {confirm?.localJournal > 0 && (
+        <p className="confirm-message">
+          Journal sync is off, so your {confirm.localJournal === 1 ? 'journal entry is' : `${confirm.localJournal} journal entries are`}{' '}
+          only on this device. Signing out removes {confirm.localJournal === 1 ? 'it' : 'them'}. Download a copy of your data first if you
+          want to keep {confirm.localJournal === 1 ? 'it' : 'them'}.
+        </p>
+      )}
+      <footer className="dialog-foot">
+        <button type="button" className="btn ghost" onClick={() => setConfirm(null)} autoFocus>
+          Cancel
+        </button>
+        <button type="button" className="btn danger" onClick={() => out(true)} disabled={busy}>
+          Sign Out Anyway
+        </button>
+      </footer>
+    </Dialog>
+  )
+
+  if (account.status === 'signed-out') {
+    if (account.reauth) {
+      return (
+        <Section title="Account" description="Your sign-in on this device has ended.">
+          <p className="settings-note account-warning">Sign in again to keep syncing. Your data is still on this device.</p>
+          <div className="actions">
+            <button className="btn primary" onClick={() => navigate('/account/email')}>
+              Sign In Again
+            </button>
+            <button className="btn danger-text" onClick={() => out(false)} disabled={busy}>
+              Remove Account Data From This Device
+            </button>
+          </div>
+          {signOutDialog}
+        </Section>
+      )
+    }
+    return (
+      <Section title="Account">
+        <button className="account-cta" onClick={() => navigate('/welcome')}>
+          <span>
+            <strong>Sign in to sync your devices</strong>
+            <span>Use ImpactMe on your phone, tablet and computer.</span>
+          </span>
+          <ArrowRightIcon width={18} height={18} />
+        </button>
+      </Section>
+    )
+  }
+
+  const { user } = account
+  return (
+    <>
+      <Section title="Account" description={user.provider === 'google' ? 'Signed in with Google.' : 'Signed in with email.'}>
+        <div className="account-who">
+          <span className="account-avatar" aria-hidden="true">
+            {(user.name || user.email).trim().charAt(0).toUpperCase()}
+          </span>
+          <span className="account-id">
+            {user.name && <strong>{user.name}</strong>}
+            <span>{user.email}</span>
+          </span>
+        </div>
+        <div className="actions">
+          <button className="btn secondary" onClick={() => out(false)} disabled={busy}>
+            {busy ? 'Signing out…' : 'Sign Out'}
+          </button>
+          <button className="btn danger-text account-delete" onClick={() => setDeleting(true)}>
+            Delete Account
+          </button>
+        </div>
+        {signOutDialog}
+        <DeleteAccountDialog
+          open={deleting}
+          onClose={() => setDeleting(false)}
+          provider={user.provider}
+          resume={resume}
+        />
+      </Section>
+
+      <Section title="Sync" description="Your tasks, projects and settings, on every device you sign in on.">
+        <label className="switch-row">
+          <input
+            type="checkbox"
+            className="switch"
+            checked={!account.paused}
+            onChange={(e) => setDeviceSync(e.target.checked)}
+          />
+          <span>
+            <strong>Sync this device</strong>
+            Turn off to stop syncing here for now. Changes are kept and sync when you turn it back on.
+          </span>
+        </label>
+        {!account.paused && <SyncStatus account={account} />}
+        {account.earlierData && <EarlierData />}
+      </Section>
+
+      <PrivacySection account={account} />
+    </>
+  )
+}
+
+function PrivacySection({ account }) {
+  const [confirmOff, setConfirmOff] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const journalOn = account.consent.journal
+
+  const change = async (on) => {
+    setBusy(true)
+    const { error } = await setJournalSync(on)
+    setBusy(false)
+    if (error) showToast(error, { tone: 'error' })
+    else showToast(on ? 'Journal sync is on.' : 'Journal sync is off. Your journal was removed from your account.')
+  }
+
+  return (
+    <Section title="Privacy" description="Your journal can include health information, so it only syncs if you choose.">
+      <label className="switch-row">
+        <input
+          type="checkbox"
+          className="switch"
+          checked={journalOn}
+          disabled={busy}
+          onChange={(e) => (e.target.checked ? change(true) : setConfirmOff(true))}
+        />
+        <span>
+          <strong>Sync journal entries</strong>
+          {journalOn
+            ? 'Your journal, mood and energy entries are stored in your account so they sync.'
+            : 'Your journal, mood and energy entries stay on this device only.'}
+        </span>
+      </label>
+      <div className="actions">
+        <button className="btn secondary" onClick={downloadBackup}>
+          <DownloadIcon width={16} height={16} /> Download a Copy of My Data
+        </button>
+      </div>
+      <p className="settings-note">
+        <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms</Link>
+      </p>
+      <ConfirmDialog
+        open={confirmOff}
+        title="Turn off journal sync?"
+        message="Your journal entries will be removed from your account and stop syncing. They stay on this device."
+        confirmLabel="Turn Off"
+        onConfirm={() => change(false)}
+        onCancel={() => setConfirmOff(false)}
+      />
+    </Section>
+  )
+}
+
+// Deleting is permanent, so the person confirms it's them first: the password
+// again for email accounts, or a recent Google sign-in. The server checks this
+// too (delete-account refuses a sign-in older than 10 minutes).
+function DeleteAccountDialog({ open, onClose, provider, resume }) {
+  const google = provider === 'google'
+  const [removeLocal, setRemoveLocal] = useState(Boolean(resume?.removeLocal))
+  const [password, setPassword] = useState('')
+  const [recent, setRecent] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const [captchaKey, setCaptchaKey] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (!open) return
+    if (resume) setRemoveLocal(Boolean(resume.removeLocal))
+    lastSignInAt().then((at) => setRecent(Date.now() - at < RECENT_SIGN_IN_MS))
+  }, [open, resume])
+
+  const close = () => {
+    if (busy) return
+    clearDeleteIntent()
+    setError(null)
+    setPassword('')
+    setRemoveLocal(false)
+    onClose()
+  }
+
+  const remove = async () => {
+    setBusy(true)
+    setError(null)
+    if (!google) {
+      const confirmed = await confirmWithPassword({ password, captchaToken })
+      setCaptchaKey((k) => k + 1)
+      if (confirmed.error) {
+        setBusy(false)
+        return setError(/don’t match/.test(confirmed.error) ? 'That password isn’t right. Try again.' : confirmed.error)
+      }
+    }
+    const result = await deleteAccount({ removeLocal })
+    setBusy(false)
+    if (result.error) {
+      if (result.reauth) setRecent(false)
+      return setError(result.error)
+    }
+    clearDeleteIntent()
+    onClose()
+    showToast(
+      removeLocal
+        ? 'Your account was deleted, and its data was removed from this device.'
+        : 'Your account was deleted. Your data is still on this device.',
+      { duration: 8000 }
+    )
+  }
+
+  const signInAgain = async () => {
+    setBusy(true)
+    setError(null)
+    const result = await confirmWithGoogle({ removeLocal })
+    // On success the page leaves for Google.
+    if (result.error) {
+      setBusy(false)
+      setError(result.error)
+    }
+  }
+
+  const ready = google ? recent : password.length > 0 && (!captchaEnabled || Boolean(captchaToken))
+
+  return (
+    <Dialog open={open} onClose={close} title="Delete your account?" size="sm">
+      <p className="confirm-message">
+        This permanently deletes your ImpactMe account and everything stored in it: your tasks, projects, journal
+        entries, settings and consent records. It can’t be undone.
+      </p>
+      <p className="confirm-message">Download a copy of your data first if you want to keep it.</p>
+      <label className="switch-row">
+        <input
+          type="checkbox"
+          className="switch"
+          checked={removeLocal}
+          onChange={(e) => setRemoveLocal(e.target.checked)}
+        />
+        <span>
+          <strong>Also remove data from this device</strong>
+          Otherwise your data stays here and ImpactMe keeps working on this device without an account.
+        </span>
+      </label>
+
+      <div className="reauth">
+        {google ? (
+          recent ? (
+            <p className="settings-note">You’ve just signed in with Google, so you can delete your account now.</p>
+          ) : (
+            <>
+              <p className="settings-note">For your security, sign in with Google again to confirm it’s you.</p>
+              <button type="button" className="btn secondary" onClick={signInAgain} disabled={busy}>
+                Sign In With Google Again
+              </button>
+            </>
+          )
+        ) : (
+          <>
+            <div className="field">
+              <label htmlFor="delete-password">Enter your password to confirm it’s you</label>
+              <input
+                id="delete-password"
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setError(null)
+                }}
+              />
+            </div>
+            <Turnstile onToken={setCaptchaToken} resetKey={captchaKey} />
+          </>
+        )}
+      </div>
+
+      {error && (
+        <p className="settings-note account-warning" role="alert">
+          {error}
+        </p>
+      )}
+      <footer className="dialog-foot">
+        <button type="button" className="btn ghost" onClick={close} disabled={busy} autoFocus>
+          Cancel
+        </button>
+        <button type="button" className="btn danger" onClick={remove} disabled={busy || !ready}>
+          {busy ? 'Deleting…' : 'Delete Account'}
+        </button>
+      </footer>
+    </Dialog>
+  )
+}
+
+// Downloads a backup file of everything on this device (a copy of your data).
+function downloadBackup() {
+  const backup = createBackup(getSnapshot())
+  downloadFile(backupFilename(), JSON.stringify(backup, null, 2))
+  updateSettings({ lastBackupAt: Date.now() })
+  showToast('Backup downloaded')
+}
+
+function SyncStatus({ account }) {
+  const { syncStatus, syncError, lastSyncedAt } = account
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => tick((n) => n + 1), 30000)
+    return () => clearInterval(timer)
+  }, [])
+  let text
+  if (syncStatus === 'syncing') text = 'Syncing…'
+  else if (syncStatus === 'offline') text = 'You’re offline. Changes will sync when you’re back online.'
+  else if (syncStatus === 'error') text = syncError
+  else text = lastSyncedAt ? `Last synced ${formatRelative(lastSyncedAt)}` : 'Not synced yet'
+  return (
+    <div className="account-sync">
+      <p className={syncStatus === 'error' ? 'settings-note account-warning' : 'settings-note'} role="status">
+        {text}
+      </p>
+      <button className="btn sm ghost" onClick={() => syncNow()} disabled={syncStatus === 'syncing'}>
+        Sync Now
+      </button>
+    </div>
+  )
+}
+
+function EarlierData() {
+  const [busy, setBusy] = useState(false)
+  const add = async () => {
+    setBusy(true)
+    try {
+      const { added, updated } = await addEarlierDataNow()
+      showToast(`Added ${added + updated} ${added + updated === 1 ? 'item' : 'items'} from this device.`)
+    } catch (error) {
+      console.warn('Adding earlier data failed', error?.name ?? 'unknown')
+      showToast('That didn’t work. Please try again.', { tone: 'error' })
+    }
+    setBusy(false)
+  }
+  return (
+    <div className="account-earlier">
+      <p className="settings-note">This device has data from before you signed in.</p>
+      <button className="btn secondary" onClick={add} disabled={busy}>
+        {busy ? 'Adding…' : 'Add This Device’s Earlier Data'}
+      </button>
+    </div>
+  )
+}
+
 function ProfileSection() {
   const settings = useSettings()
   const [name, setName] = useState(settings.name)
   const save = () => name.trim() !== settings.name && updateSettings({ name })
 
   return (
-    <Section title="Profile" description="Used to greet you on the dashboard.">
-      <div className="field">
-        <label htmlFor="settings-name">Preferred name</label>
+    <Section title="Profile" description="Used to greet you on Home.">
+      <div className="profile-row">
+        <span className="profile-avatar" aria-hidden="true">
+          {(settings.name || '?').trim().charAt(0).toUpperCase() || '?'}
+        </span>
+        <div className="field">
+        <label htmlFor="settings-name">Your name</label>
         <input
           id="settings-name"
           className="input"
@@ -131,8 +535,36 @@ function ProfileSection() {
           autoComplete="given-name"
           maxLength={60}
         />
+        </div>
       </div>
     </Section>
+  )
+}
+
+// Desktop: three preview thumbnails; phones: a segmented control (UI upgrade).
+function ThemePicker({ value, onChange }) {
+  return (
+    <div className="theme-picker" role="radiogroup" aria-label="Theme">
+      {['light', 'dark', 'system'].map((key) => THEMES.find(([option]) => option === key)).map(([option, label]) => (
+        <button
+          key={option}
+          role="radio"
+          aria-checked={value === option}
+          className={value === option ? 'theme-thumb active' : 'theme-thumb'}
+          onClick={() => onChange(option)}
+        >
+          <span className={`theme-preview ${option}`} aria-hidden="true">
+            <span className="theme-preview-side" />
+            <span className="theme-preview-lines">
+              <span />
+              <span />
+              <span />
+            </span>
+          </span>
+          <span className="theme-thumb-label">{label}</span>
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -143,7 +575,7 @@ function AppearanceSection() {
     <Section title="Appearance" description="System follows your device’s light or dark setting.">
       <div className="field">
         <span className="field-label">Theme</span>
-        <Segmented label="Theme" value={preference} options={THEMES} onChange={setTheme} />
+        <ThemePicker value={preference} onChange={setTheme} />
       </div>
       <div className="field">
         <span className="field-label">Time format</span>
@@ -378,7 +810,7 @@ function NotificationsSection() {
           <li>Do Not Disturb, Focus modes and battery savers can hide or delay notifications.</li>
           <li>
             Reminders that arrive while the browser is completely closed would need a push server. ImpactMe doesn’t
-            use one, so your tasks never leave this device.
+            use one. If you use ImpactMe on several devices, a reminder can appear on each of them.
           </li>
         </ul>
       </details>
@@ -492,12 +924,8 @@ function DataSection() {
   }
   useEffect(refresh, [])
 
-  function download() {
-    const backup = createBackup(getSnapshot())
-    downloadFile(backupFilename(), JSON.stringify(backup, null, 2))
-    updateSettings({ lastBackupAt: Date.now() })
-    showToast('Backup downloaded')
-  }
+  const download = downloadBackup
+  const signedIn = useAccount().status === 'signed-in'
 
   async function chooseFile(e) {
     const file = e.target.files?.[0]
@@ -527,7 +955,11 @@ function DataSection() {
   return (
     <Section
       title="Data & backup"
-      description="Everything you write stays in this browser on this device. Nothing is sent to a server."
+      description={
+        signedIn
+          ? 'Everything is saved on this device and in your ImpactMe account, so it can sync.'
+          : 'Everything you write stays in this browser on this device. Nothing is sent to a server.'
+      }
     >
       <div className="data-summary">
         <div>
@@ -724,6 +1156,7 @@ function ShortcutsSection() {
 }
 
 function AboutSection() {
+  const signedIn = useAccount().status === 'signed-in'
   return (
     <Section title="About">
       <div className="about">
@@ -731,7 +1164,10 @@ function AboutSection() {
         <div>
           <strong>ImpactMe</strong>
           <p>Make Every Day Count. Your personal space to plan, organize, reflect and grow.</p>
-          <p className="about-meta">Version {__APP_VERSION__} · Your data never leaves this device.</p>
+          <p className="about-meta">
+            Version {__APP_VERSION__} ·{' '}
+            {signedIn ? 'Saved on this device and in your ImpactMe account.' : 'Your data stays on this device.'}
+          </p>
         </div>
       </div>
     </Section>

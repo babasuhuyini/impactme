@@ -9,18 +9,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="ImpactMe" />
-    <script>
-      // Apply the saved theme before first paint so there's no light/dark flash.
-      // ImpactMe mirrors its theme setting here; Daybook used 'ui.theme'.
-      try {
-        let saved = localStorage.getItem('impactme.theme')
-        if (!saved) saved = JSON.parse(localStorage.getItem('ui.theme'))
-        const dark = saved === 'dark' || (saved !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
-        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-      } catch {
-        document.documentElement.dataset.theme = 'light'
-      }
-    </script>
+    <script src="/theme.js"></script>
     <style>
       /* Shown until the app has loaded its data. */
       .splash {

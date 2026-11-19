@@ -19,7 +19,8 @@ function trackErrors(page) {
 
 async function ready(page, path = './') {
   await page.goto(path)
-  await expect(page.locator('.brand-name')).toBeVisible()
+  // The app has loaded once its main area is on screen (phones hide the sidebar).
+  await expect(page.locator('.main')).toBeVisible({ timeout: 20_000 })
 }
 
 async function quickAdd(page, text) {
@@ -62,10 +63,10 @@ test('quick add reads dates, times and repeats, and lets you correct them', asyn
   await expect(page.locator('.todo', { hasText: 'Meet Ama Friday' })).toContainText('2:00 PM')
 
   // Completing a repeating task schedules the next one and keeps a record.
-  await study.locator('.check').click()
+  await study.locator('.rc').click()
   await expect(page.locator('.toast')).toContainText('Next one scheduled')
-  await expect(page.locator('.todo:not(.done)', { hasText: 'Study' }).locator('.due-badge')).toContainText('Tomorrow')
-  await page.getByRole('tab', { name: 'Completed' }).click()
+  await expect(page.locator('.todo:not(.done)', { hasText: 'Study' }).locator('.todo-meta')).toContainText('Tomorrow')
+  await page.locator('.sidebar').getByRole('link', { name: 'Completed' }).click()
   await expect(page.locator('.todo.done', { hasText: 'Study' })).toHaveCount(1)
   expect(errors).toEqual([])
 })
@@ -87,7 +88,7 @@ test('task editor: projects, subtasks, custom repeats and unsaved changes', asyn
   await page.getByLabel('New task').fill('Fix the tap tomorrow')
   await page.keyboard.press('Enter')
   const row = page.locator('.todo', { hasText: 'Fix the tap' })
-  await expect(row.locator('.due-badge')).toContainText('Tomorrow')
+  await expect(row.locator('.todo-meta')).toContainText('Tomorrow')
 
   await row.locator('.todo-body').click()
   const editor = page.getByRole('dialog', { name: 'Edit task' })
@@ -103,20 +104,31 @@ test('task editor: projects, subtasks, custom repeats and unsaved changes', asyn
   await expect(editor.locator('.repeat-picker .field-hint')).toHaveText('Every 2 weeks on Mon, Wed')
   await editor.getByLabel('Category').fill('Home care')
   await shot(page, 'p2-editor')
-  await editor.getByRole('button', { name: 'Save' }).click()
+  // Changes save as you type; closing just closes.
+  await expect(editor.getByRole('status')).toHaveText('Saved')
+  await editor.getByRole('button', { name: 'Close' }).click()
   await expect(editor).toBeHidden()
 
-  await expect(row).toContainText('0/2')
+  await expect(row).toContainText('0 of 2 subtasks')
   await expect(row).toContainText('Home care')
   await expect(row).toContainText('Every 2 weeks on Mon, Wed')
   await shot(page, 'p2-project')
 
-  // Esc with unsaved changes asks first.
+  // A rename saves straight away; Undo after closing puts it back.
   await row.locator('.todo-body').click()
   await editor.getByLabel('Name').fill('Changed my mind')
+  await expect(page.locator('.todo', { hasText: 'Changed my mind' })).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(editor.getByText('Discard your changes?')).toBeVisible()
-  await editor.getByRole('button', { name: 'Discard' }).click()
+  await expect(editor).toBeHidden()
+  await page.locator('.toast', { hasText: 'Changes saved' }).getByRole('button', { name: 'Undo' }).click()
+  await expect(row).toBeVisible()
+
+  // An empty name is never saved.
+  await row.locator('.todo-body').click()
+  await editor.getByLabel('Name').fill('')
+  await expect(editor.getByRole('status')).toHaveText('Not saved')
+  await expect(editor.getByRole('alert')).toContainText('Give the task a name.')
+  await page.keyboard.press('Escape')
   await expect(editor).toBeHidden()
   await expect(row).toBeVisible()
 
@@ -211,7 +223,9 @@ test('calendar: schedule, drag, resize, overlaps, blocks and export', async ({ p
   const handle = await review.locator('.cal-resize').boundingBox()
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
   await page.mouse.down()
-  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 + 48, { steps: 8 })
+  // One hour, measured from the grid (the design sets the hour height).
+  const hour = (await col('2026-11-04').boundingBox()).height / 24
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 + hour, { steps: 8 })
   await page.mouse.up()
   await expect(review).toHaveAttribute('aria-label', /10:00 AM – 12:00 PM/)
 
@@ -228,7 +242,8 @@ test('calendar: schedule, drag, resize, overlaps, blocks and export', async ({ p
 
   // Schedule an undated task by dragging it in from the side panel.
   await quickAdd(page, 'Read paper')
-  await page.getByRole('button', { name: /Unscheduled/ }).click()
+  // On desktop the unscheduled list is always beside the grid.
+  await expect(page.getByRole('heading', { name: 'Unscheduled' })).toBeVisible()
   const item = page.locator('.unscheduled-item', { hasText: 'Read paper' })
   const itemBox = await item.boundingBox()
   await page.mouse.move(itemBox.x + 20, itemBox.y + itemBox.height / 2)
@@ -271,8 +286,8 @@ test('calendar on a phone opens in day view without sideways scrolling', async (
   await ready(page)
   await quickAdd(page, 'Dentist today 3-4pm')
   await quickAdd(page, 'Team sync today 3:30-4:30pm')
-  // The closed drawer is inert, so only the bottom bar can be used.
-  await expect(page.locator('.sidebar')).toHaveAttribute('inert', '')
+  // Phones navigate with the tab bar; the desktop sidebar is hidden.
+  await expect(page.locator('.sidebar')).toBeHidden()
   await page.locator('.bottom-nav').getByRole('link', { name: 'Calendar' }).click()
   await expect(page.locator('.time-grid.cols-1')).toBeVisible()
   await expect(page.locator('.cal-event', { hasText: 'Dentist' })).toBeVisible()

@@ -1,61 +1,54 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import ProjectDialog from './tasks/ProjectDialog.jsx'
-import useTheme from '../hooks/useTheme.js'
 import { useJournalEntries, useProjects, useTasks } from '../data/store.js'
-import {
-  BookIcon,
-  BrandMark,
-  CalendarIcon,
-  ChecklistIcon,
-  GearIcon,
-  HomeIcon,
-  MonitorIcon,
-  MoonIcon,
-  PlusIcon,
-  SunIcon,
-} from './icons.jsx'
+import { BookIcon, BrandMark, CalendarIcon, HomeIcon, ListIcon, PlusIcon, SearchIcon, SlidersIcon } from './icons.jsx'
 import { VIEWS, isOpenTask } from '../lib/todos.js'
 
 const TASK_VIEWS = ['inbox', 'today', 'upcoming', 'overdue', 'completed']
-const THEMES = [
-  ['light', 'Light', SunIcon],
-  ['dark', 'Dark', MoonIcon],
-  ['system', 'System', MonitorIcon],
-]
 
 const linkClass = (base) => ({ isActive }) => (isActive ? `${base} active` : base)
 
-export default function Sidebar({ onQuickAdd, onNavigate, inert }) {
+// Desktop navigation. On phones the bottom tab bar and the Tasks screen take over.
+export default function Sidebar() {
   const navigate = useNavigate()
-  const [, preference, setTheme] = useTheme()
   const entries = useJournalEntries()
   const projects = useProjects()
   const openTasks = useTasks().filter(isOpenTask)
   const [creatingProject, setCreatingProject] = useState(false)
 
   return (
-    // Any link tap closes the phone drawer, even one to the page already open.
-    <aside className="sidebar" aria-label="Sidebar" inert={inert} onClick={(e) => e.target.closest('a') && onNavigate()}>
+    <aside className="sidebar" aria-label="Sidebar">
       <div className="brand">
         <BrandMark size={28} className="brand-mark" />
         <span className="brand-name">ImpactMe</span>
       </div>
 
-      <button className="quick-add-btn" onClick={onQuickAdd}>
-        <PlusIcon width={18} height={18} strokeWidth={2.4} />
-        Quick add
-        <kbd>Q</kbd>
-      </button>
+      {/* Search everything on this device (tasks, journal, projects). */}
+      <form
+        role="search"
+        onSubmit={(e) => {
+          e.preventDefault()
+          const q = new FormData(e.currentTarget).get('q').trim()
+          navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search')
+          e.currentTarget.reset()
+        }}
+      >
+        <label className="side-search">
+          <SearchIcon width={15} height={15} />
+          <span className="sr-only">Search</span>
+          <input name="q" type="search" placeholder="Search" enterKeyHint="search" />
+        </label>
+      </form>
 
       <nav className="side-nav" aria-label="Main">
         <NavLink to="/" end className={linkClass('side-link')}>
           <HomeIcon width={18} height={18} />
-          <span>Dashboard</span>
+          <span>Home</span>
         </NavLink>
         <NavLink to="/tasks" end className={linkClass('side-link')}>
-          <ChecklistIcon width={18} height={18} />
-          <span>My Tasks</span>
+          <ListIcon width={18} height={18} />
+          <span>Tasks</span>
           <span className="side-count">{openTasks.length || ''}</span>
         </NavLink>
         {TASK_VIEWS.map((key) => {
@@ -112,31 +105,15 @@ export default function Sidebar({ onQuickAdd, onNavigate, inert }) {
 
       <div className="sidebar-foot">
         <NavLink to="/settings" className={linkClass('side-link')}>
-          <GearIcon width={18} height={18} />
+          <SlidersIcon width={18} height={18} />
           <span>Settings</span>
         </NavLink>
-        <div className="theme-toggle" role="radiogroup" aria-label="Theme">
-          {THEMES.map(([value, label, Icon]) => (
-            <button
-              key={value}
-              role="radio"
-              aria-checked={preference === value}
-              className={preference === value ? 'theme-option active' : 'theme-option'}
-              onClick={() => setTheme(value)}
-              title={value === 'system' ? 'Match my device' : `${label} theme`}
-            >
-              <Icon width={15} height={15} />
-              {label}
-            </button>
-          ))}
-        </div>
       </div>
 
       <ProjectDialog
         open={creatingProject}
         onClose={() => setCreatingProject(false)}
         onCreated={(project) => {
-          onNavigate()
           navigate(`/tasks/project/${project.id}`)
         }}
       />

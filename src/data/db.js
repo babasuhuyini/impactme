@@ -24,3 +24,10 @@ db.version(3).stores({
   reminderLog: 'key, at',
   snoozes: 'taskId, at',
 })
+
+// Phase 4: sync. One entry per record changed on this device since it was
+// last pushed, keyed '<table>:<id>' so a newer change replaces an older one.
+// Only written while the device is linked to an account (kv 'sync.userId').
+db.version(4).stores({
+  syncQueue: '&key, table',
+})
