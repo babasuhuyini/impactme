@@ -14,7 +14,10 @@ import Todos from './pages/Todos.jsx'
 import Settings from './pages/Settings.jsx'
 import useJournal from './hooks/useJournal.js'
 import { rollForwardBlocks } from './data/actions.js'
-import { tasks } from './data/store.js'
+import { clearNotice, useAccount } from './data/account.js'
+import { journal, projects, tasks } from './data/store.js'
+import AccountRoutes, { isAccountRoute, isSignInRoute } from './pages/account/AccountRoutes.jsx'
+import { welcomeDismissed } from './pages/account/SignIn.jsx'
 import { startReminders } from './reminders/scheduler.js'
 import { BrandMark, PlusIcon } from './components/icons.jsx'
 
@@ -62,6 +65,41 @@ export default function App() {
     else showToast('That task has been deleted.')
   }, [search, pathname, navigate])
 
+  // Accounts: the Welcome screen on a first launch, then the screens a
+  // signed-in person must see first (new password after a reset link,
+  // "Before you start" until consent is recorded).
+  const account = useAccount()
+  const checkedWelcome = useRef(false)
+  useEffect(() => {
+    if (checkedWelcome.current || account.status === 'loading') return
+    checkedWelcome.current = true
+    const empty = !tasks.all().length && !journal.all().length && !projects.all().length
+    if (account.status === 'signed-out' && empty && !welcomeDismissed() && pathname === '/') {
+      navigate('/welcome', { replace: true })
+    }
+  }, [account.status, pathname, navigate])
+
+  useEffect(() => {
+    if (account.status !== 'signed-in') return
+    if (account.recovery) {
+      if (pathname !== '/account/new-password') navigate('/account/new-password', { replace: true })
+      return
+    }
+    const consent = account.consent.status
+    if ((consent === 'needed' || consent === 'error') && pathname !== '/account/consent') {
+      if (pathname !== '/privacy' && pathname !== '/terms') navigate('/account/consent', { replace: true })
+    } else if (consent === 'done' && (isSignInRoute(pathname) || pathname === '/account/consent')) {
+      navigate('/', { replace: true })
+    }
+  }, [account.status, account.recovery, account.consent.status, pathname, navigate])
+
+  // A sign-in link that didn't work (expired, opened in another browser).
+  useEffect(() => {
+    if (!account.notice) return
+    showToast(account.notice.message, { tone: account.notice.tone === 'error' ? 'error' : undefined, duration: 12000 })
+    clearNotice()
+  }, [account.notice])
+
   useEffect(() => {
     const onMessage = ({ data }) => data?.type === 'open' && navigate(data.hash.replace(/^#/, ''))
     navigator.serviceWorker?.addEventListener('message', onMessage)
@@ -92,6 +130,15 @@ export default function App() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [])
+
+  if (isAccountRoute(pathname)) {
+    return (
+      <>
+        <AccountRoutes />
+        <ToastHost />
+      </>
+    )
+  }
 
   return (
     <div className={navOpen ? 'shell nav-open' : 'shell'}>

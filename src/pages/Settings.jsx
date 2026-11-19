@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Dialog from '../components/Dialog.jsx'
 import { showToast } from '../components/Toast.jsx'
 import {
   AlertIcon,
+  ArrowRightIcon,
   BellIcon,
   BrandMark,
   CheckIcon,
@@ -39,6 +41,7 @@ import {
   useNotificationPermission,
 } from '../reminders/notifications.js'
 import { applyUpdate, checkForUpdate, promptInstall, usePWA } from '../pwa.js'
+import { signOut, useAccount } from '../data/account.js'
 
 const THEMES = [
   ['system', 'System', MonitorIcon],
@@ -67,6 +70,7 @@ export default function Settings() {
           <h1 className="page-title">Settings</h1>
           <p className="page-sub">Preferences are saved automatically.</p>
         </header>
+        <AccountSection />
         <ProfileSection />
         <AppearanceSection />
         <CalendarSection />
@@ -108,6 +112,55 @@ function Segmented({ label, value, options, onChange }) {
         </button>
       ))}
     </div>
+  )
+}
+
+// Signed out: the way in to sign-in. Signed in: who, and Sign Out. The full
+// Account screen (sync, privacy, delete account) comes with sync.
+function AccountSection() {
+  const account = useAccount()
+  const navigate = useNavigate()
+  const [busy, setBusy] = useState(false)
+  if (account.status === 'unavailable' || account.status === 'loading') return null
+
+  if (account.status === 'signed-out') {
+    return (
+      <Section title="Account">
+        <button className="account-cta" onClick={() => navigate('/welcome')}>
+          <span>
+            <strong>Sign in to sync your devices</strong>
+            <span>Use ImpactMe on your phone, tablet and computer.</span>
+          </span>
+          <ArrowRightIcon width={18} height={18} />
+        </button>
+      </Section>
+    )
+  }
+
+  const { user } = account
+  const out = async () => {
+    setBusy(true)
+    const { error } = await signOut()
+    setBusy(false)
+    if (error) showToast(error, { tone: 'error' })
+  }
+  return (
+    <Section title="Account" description={user.provider === 'google' ? 'Signed in with Google.' : 'Signed in with email.'}>
+      <div className="account-who">
+        <span className="account-avatar" aria-hidden="true">
+          {(user.name || user.email).trim().charAt(0).toUpperCase()}
+        </span>
+        <span className="account-id">
+          {user.name && <strong>{user.name}</strong>}
+          <span>{user.email}</span>
+        </span>
+      </div>
+      <div className="actions">
+        <button className="btn secondary" onClick={out} disabled={busy}>
+          {busy ? 'Signing out…' : 'Sign Out'}
+        </button>
+      </div>
+    </Section>
   )
 }
 

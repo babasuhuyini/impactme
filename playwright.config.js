@@ -9,6 +9,12 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4173/',
     channel: 'msedge',
+    // Every test starts past the Welcome screen, as if it had been dismissed.
+    // tests/e2e/account.spec.js clears this to test the Welcome itself.
+    storageState: {
+      cookies: [],
+      origins: [{ origin: 'http://localhost:4173', localStorage: [{ name: 'impactme.welcomeDismissed', value: '1' }] }],
+    },
   },
   webServer: {
     command: 'npx vite preview --port 4173 --strictPort',

@@ -11,7 +11,11 @@ import { showReminders } from './reminders/present.js'
 
 // The whole app (code, styles, fonts, icons) is stored on the device, so it
 // opens without a connection. Your data is in IndexedDB, which is always local.
-precacheAndRoute(self.__WB_MANIFEST)
+// Coming back from a sign-in link (/?code=..., or ?error=...) still opens the
+// stored app; the page then reads those parameters itself.
+precacheAndRoute(self.__WB_MANIFEST, {
+  ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^code$/, /^sb_flow_id$/, /^error/],
+})
 cleanupOutdatedCaches()
 
 // A new version waits until you choose "Update", so it never reloads mid-task.
