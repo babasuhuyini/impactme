@@ -46,7 +46,7 @@ function fakeSession() {
 
 // A fake Supabase: email sign-in, and the consents table.
 async function fakeSupabase(page) {
-  const calls = { consentInserts: [], upserts: {} }
+  const calls = { consentInserts: [], upserts: {}, journalDeleted: 0, accountDeleted: 0 }
   await page.route(`${SUPABASE}/**`, async (route) => {
     const req = route.request()
     const url = new URL(req.url())
@@ -64,6 +64,14 @@ async function fakeSupabase(page) {
     if (url.pathname === '/rest/v1/consents' && req.method() === 'POST') {
       calls.consentInserts.push(req.postDataJSON())
       return json(201)
+    }
+    if (url.pathname === '/rest/v1/rpc/delete_my_journal_entries') {
+      calls.journalDeleted++
+      return route.fulfill({ status: 204 })
+    }
+    if (url.pathname === '/functions/v1/delete-account' && req.method() === 'POST') {
+      calls.accountDeleted++
+      return json(200, { ok: true })
     }
     // Sync: an empty account that accepts uploads.
     const table = url.pathname.match(/^\/rest\/v1\/(tasks|journal_entries|projects|user_settings)$/)?.[1]
@@ -83,7 +91,8 @@ test.describe('first launch', () => {
   test('shows Welcome to a new user once, and Continue without an account skips it', async ({ page }) => {
     const problems = watchConsole(page)
     await page.goto('./')
-    await expect(page.getByRole('heading', { name: 'ImpactMe' })).toBeVisible()
+    // The first page load in a fresh browser can sit on the splash for a while.
+    await expect(page.getByRole('heading', { name: 'ImpactMe' })).toBeVisible({ timeout: 20_000 })
     await expect(page.getByText('Make Every Day Count.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Sign in with Apple' })).toHaveCount(0)
@@ -260,5 +269,55 @@ test('first sign-in with data on this device asks first, then adds it to the acc
   await expect(page.locator('.shell')).toBeVisible()
   await expect.poll(() => (calls.upserts.tasks ?? []).map((r) => r.data?.title)).toContain('Buy plantains')
   await expect.poll(() => (calls.upserts.user_settings ?? []).length).toBeGreaterThan(0)
+  expect(problems).toEqual([])
+})
+
+test('Settings: journal sync off removes it from the account; Delete Account keeps this device’s data', async ({ page }) => {
+  const problems = watchConsole(page)
+  const calls = await fakeSupabase(page)
+  await page.goto('./#/account/email')
+  await page.getByLabel('Email').fill(EMAIL)
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD)
+  await page.getByRole('button', { name: 'Sign In' }).click()
+  await page.getByText('I’m 16 or older.').click()
+  await page.locator('.consent-item').nth(1).click({ position: { x: 20, y: 20 } })
+  await page.locator('.consent-item').nth(2).click({ position: { x: 20, y: 20 } })
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.locator('.shell')).toBeVisible()
+
+  await page.goto('./#/tasks')
+  await page.getByLabel('New task').fill('Keep me')
+  await page.keyboard.press('Enter')
+
+  await page.goto('./#/settings')
+  const journalSwitch = page.getByRole('checkbox', { name: /Sync journal entries/ })
+  await expect(journalSwitch).toBeChecked()
+  await expect(page.getByRole('checkbox', { name: /Sync this device/ })).toBeChecked()
+  await shot(page, 'settings-signed-in')
+  await journalSwitch.click()
+  await page.getByRole('button', { name: 'Turn Off' }).click()
+  await expect.poll(() => calls.journalDeleted).toBe(1)
+  await expect(journalSwitch).not.toBeChecked()
+
+  await page.getByRole('button', { name: 'Delete Account' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Delete your account?' })
+  await expect(dialog.getByRole('checkbox', { name: /Also remove data from this device/ })).not.toBeChecked()
+  await shot(page, 'delete-account')
+  // Deleting needs the password again (a fresh sign-in).
+  const remove = dialog.getByRole('button', { name: 'Delete Account' })
+  await expect(remove).toBeDisabled()
+  await dialog.getByLabel(/Enter your password/).fill('wrong-password')
+  await remove.click()
+  await expect(dialog.getByRole('alert')).toHaveText('That password isn’t right. Try again.')
+  expect(calls.accountDeleted).toBe(0)
+  await dialog.getByLabel(/Enter your password/).fill(PASSWORD)
+  await remove.click()
+  await expect(page.getByText('Your account was deleted. Your data is still on this device.')).toBeVisible()
+  expect(calls.accountDeleted).toBe(1)
+  await expect(page.getByText('Sign in to sync your devices')).toBeVisible()
+
+  await page.goto('./#/tasks')
+  await expect(page.getByText('Keep me')).toBeVisible()
   expect(problems).toEqual([])
 })

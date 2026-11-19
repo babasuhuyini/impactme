@@ -32,6 +32,7 @@ import {
   JOURNAL_KEY,
   LAST_SYNC_KEY,
   LINK_KEY,
+  PAUSED_KEY,
   SNAPSHOT_KEY,
   SYNC_TABLES,
   cursorKey,
@@ -49,7 +50,7 @@ const EVERY = 3 * 60 * 1000
 
 const kvGet = async (key) => (await db.kv.get(key))?.value
 const kvSet = (key, value) => db.kv.put({ key, value })
-const SYNC_KV_KEYS = [LINK_KEY, JOURNAL_KEY, LAST_SYNC_KEY, ...[...SYNC_TABLES, 'settings'].map(cursorKey)]
+const SYNC_KV_KEYS = [LINK_KEY, JOURNAL_KEY, LAST_SYNC_KEY, PAUSED_KEY, ...[...SYNC_TABLES, 'settings'].map(cursorKey)]
 
 // Server timestamps are ISO strings with microseconds; compare without losing them.
 const later = (a, b) => {
@@ -247,6 +248,17 @@ export async function applyJournalSync(on, t = transport) {
   })
 }
 
+/* Unlinking -------------------------------------------------------------- */
+
+// Stops syncing this device with the account but keeps its data (after the
+// account is deleted, when "Also remove data from this device" is off).
+export async function unlinkDevice() {
+  await db.transaction('rw', db.kv, db.syncQueue, async () => {
+    await db.syncQueue.clear()
+    await db.kv.bulkDelete(SYNC_KV_KEYS)
+  })
+}
+
 /* Sign out --------------------------------------------------------------- */
 
 // Removes everything of the account from this device.
@@ -263,7 +275,7 @@ let preparedFor = null
 let signingOut = false
 
 const canSync = (a = getAccount()) =>
-  a.status === 'signed-in' && !a.recovery && a.consent.status === 'done' && a.device === 'linked'
+  a.status === 'signed-in' && !a.recovery && a.consent.status === 'done' && a.device === 'linked' && !a.paused
 
 // Runs a sync now, or once more after the one in progress.
 export function syncNow() {
@@ -361,6 +373,7 @@ async function prepareDevice(account) {
     setSyncState({
       device: 'linked',
       reauth: false,
+      paused: (await kvGet(PAUSED_KEY)) === true,
       lastSyncedAt: (await kvGet(LAST_SYNC_KEY)) ?? null,
       earlierData: Boolean(await kvGet(SNAPSHOT_KEY)),
     })
@@ -409,6 +422,50 @@ export async function setJournalSync(on) {
   return { error: null }
 }
 
+// "Sync this device": off pauses syncing here without signing out. Changes
+// keep being recorded and go up when it's switched back on.
+export async function setDeviceSync(on) {
+  await kvSet(PAUSED_KEY, !on)
+  setSyncState({ paused: !on, syncStatus: 'idle', syncError: null })
+  if (on) syncNow()
+}
+
+// Deletes the account (the delete-account Edge Function removes the user and,
+// by cascade, every row of theirs), then signs out here. With `removeLocal`
+// this device is cleared as on sign-out; otherwise its data stays, unlinked.
+export async function deleteAccount({ removeLocal = false } = {}) {
+  if (globalThis.navigator?.onLine === false) {
+    return { error: 'You’re offline. Connect to the internet to delete your account.' }
+  }
+  try {
+    await withAuthRetry(() => transport.deleteAccount())
+  } catch (error) {
+    console.warn('Delete account failed', error?.kind ?? error?.name ?? '', error?.code ?? '')
+    const kind = error instanceof SyncError ? error.kind : 'server'
+    if (kind === 'reauth') {
+      return { error: 'For your security, confirm it’s you again, then delete your account.', reauth: true }
+    }
+    return {
+      error:
+        kind === 'network'
+          ? 'Couldn’t reach your account. Check your connection and try again.'
+          : kind === 'auth'
+            ? 'Your sign-in has expired. Sign in again, then delete your account.'
+            : 'Your account couldn’t be deleted. Nothing was removed. Please try again later.',
+    }
+  }
+  signingOut = true
+  try {
+    await signOut()
+    if (removeLocal) await clearDeviceForSignOut()
+    else await unlinkDevice()
+    setSyncState({ device: 'unknown', counts: null, reauth: false, paused: false, earlierData: false, lastSyncedAt: null, syncStatus: 'idle', syncError: null })
+  } finally {
+    signingOut = false
+  }
+  return { error: null }
+}
+
 // Sign out of this device. Without `force`, first pushes what it can and
 // reports anything that would be lost: unsynced changes, and journal entries
 // that only exist here (no journal consent). Then signs out and removes the
@@ -433,7 +490,7 @@ export async function signOutDevice({ force = false } = {}) {
   try {
     await signOut()
     await clearDeviceForSignOut()
-    setSyncState({ device: 'unknown', counts: null, reauth: false, earlierData: false, lastSyncedAt: null, syncStatus: 'idle', syncError: null })
+    setSyncState({ device: 'unknown', counts: null, reauth: false, paused: false, earlierData: false, lastSyncedAt: null, syncStatus: 'idle', syncError: null })
   } finally {
     signingOut = false
   }

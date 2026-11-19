@@ -18,12 +18,16 @@ import {
   addEarlierData,
   applyJournalSync,
   clearDeviceForSignOut,
+  deleteAccount,
+  setDeviceSync,
+  setTransport,
   keepDeviceDataAside,
   linkDevice,
   pullAll,
   pushQueue,
 } from './sync.js'
-import { JOURNAL_KEY, LINK_KEY, SNAPSHOT_KEY, cursorKey, queueKey } from './syncQueue.js'
+import { JOURNAL_KEY, LINK_KEY, PAUSED_KEY, SNAPSHOT_KEY, cursorKey, queueKey } from './syncQueue.js'
+import { SyncError } from './syncTransport.js'
 
 // A fake account server that behaves like the real one: last change wins per
 // record (by changed_at), tombstones for deletes, and a server timestamp on
@@ -407,5 +411,75 @@ describe('size limit', () => {
     expect(server.tables.tasks.has(small.id)).toBe(true)
     expect(server.tables.journal.has(big.id)).toBe(false)
     expect((await queue()).map((q) => q.key)).toEqual([queueKey('journal', big.id)])
+  })
+})
+
+describe('deleting the account', () => {
+  const withDelete = (impl) => setTransport({ ...server, deleteAccount: impl, refresh: async () => false })
+
+  it('keeps this device’s data but unlinks it, when not asked to remove it', async () => {
+    let called = 0
+    withDelete(async () => called++)
+    await link()
+    const t = await addTask()
+    await db.kv.put({ key: cursorKey('tasks'), value: 'x' })
+
+    expect(await deleteAccount({ removeLocal: false })).toEqual({ error: null })
+    expect(called).toBe(1)
+    expect(tasks.get(t.id)).toBeTruthy()
+    expect(await kv(LINK_KEY)).toBeUndefined()
+    expect(await kv(cursorKey('tasks'))).toBeUndefined()
+    expect(await queue()).toEqual([])
+    // Not linked any more: new changes aren't queued.
+    await addTask('After')
+    expect(await queue()).toEqual([])
+  })
+
+  it('removes this device’s data too, when asked', async () => {
+    withDelete(async () => {})
+    await link()
+    await addTask()
+    expect(await deleteAccount({ removeLocal: true })).toEqual({ error: null })
+    expect(tasks.all()).toEqual([])
+    expect(await db.tasks.count()).toBe(0)
+    expect(await kv(LINK_KEY)).toBeUndefined()
+  })
+
+  it('asks to confirm it’s you when the sign-in isn’t recent, and changes nothing', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    withDelete(async () => {
+      throw new SyncError('reauth', 'reauth_required')
+    })
+    await link()
+    const t = await addTask()
+    const result = await deleteAccount({ removeLocal: true })
+    expect(result).toEqual({ error: expect.stringMatching(/confirm it’s you/), reauth: true })
+    expect(tasks.get(t.id)).toBeTruthy()
+    expect(await kv(LINK_KEY)).toBe('user-1')
+  })
+
+  it('changes nothing here when the server refuses', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    withDelete(async () => {
+      throw new SyncError('server', '500')
+    })
+    await link()
+    const t = await addTask()
+    const result = await deleteAccount({ removeLocal: true })
+    expect(result.error).toMatch(/couldn’t be deleted\. Nothing was removed/)
+    expect(tasks.get(t.id)).toBeTruthy()
+    expect(await kv(LINK_KEY)).toBe('user-1')
+  })
+})
+
+describe('Sync this device', () => {
+  it('switching it off is remembered on this device, and changes keep being recorded', async () => {
+    await link()
+    await setDeviceSync(false)
+    expect(await kv(PAUSED_KEY)).toBe(true)
+    await addTask()
+    expect(await queue()).toHaveLength(1)
+    await setDeviceSync(true)
+    expect(await kv(PAUSED_KEY)).toBe(false)
   })
 })

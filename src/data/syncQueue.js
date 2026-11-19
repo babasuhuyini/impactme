@@ -25,6 +25,7 @@ export const LINK_KEY = 'sync.userId' // the account this device is linked to
 export const JOURNAL_KEY = 'sync.journal' // true when journal sync is consented to
 export const LAST_SYNC_KEY = 'sync.lastSyncedAt'
 export const SNAPSHOT_KEY = 'sync.unlinkedDeviceData' // "Not Now" on first sign-in
+export const PAUSED_KEY = 'sync.paused' // "Sync this device" switched off
 export const cursorKey = (table) => `sync.cursor.${table}`
 
 export const SETTINGS_QUEUE_KEY = 'settings:settings'

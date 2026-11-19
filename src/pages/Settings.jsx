@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import Dialog from '../components/Dialog.jsx'
 import { showToast } from '../components/Toast.jsx'
 import {
@@ -41,8 +42,24 @@ import {
   useNotificationPermission,
 } from '../reminders/notifications.js'
 import { applyUpdate, checkForUpdate, promptInstall, usePWA } from '../pwa.js'
-import { useAccount } from '../data/account.js'
-import { addEarlierDataNow, signOutDevice, syncNow } from '../data/sync.js'
+import {
+  RECENT_SIGN_IN_MS,
+  clearDeleteIntent,
+  confirmWithGoogle,
+  confirmWithPassword,
+  getDeleteIntent,
+  lastSignInAt,
+  useAccount,
+} from '../data/account.js'
+import Turnstile, { captchaEnabled } from '../components/account/Turnstile.jsx'
+import {
+  addEarlierDataNow,
+  deleteAccount,
+  setDeviceSync,
+  setJournalSync,
+  signOutDevice,
+  syncNow,
+} from '../data/sync.js'
 
 const THEMES = [
   ['system', 'System', MonitorIcon],
@@ -124,6 +141,12 @@ function AccountSection() {
   const navigate = useNavigate()
   const [confirm, setConfirm] = useState(null) // { pending, localJournal } before signing out
   const [busy, setBusy] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  // Back from a Google sign-in to confirm a delete: reopen the dialog.
+  const [resume] = useState(getDeleteIntent)
+  useEffect(() => {
+    if (resume) setDeleting(true)
+  }, [resume])
   if (account.status === 'unavailable' || account.status === 'loading') return null
 
   const out = async (force = false) => {
@@ -194,26 +217,250 @@ function AccountSection() {
 
   const { user } = account
   return (
-    <Section title="Account" description={user.provider === 'google' ? 'Signed in with Google.' : 'Signed in with email.'}>
-      <div className="account-who">
-        <span className="account-avatar" aria-hidden="true">
-          {(user.name || user.email).trim().charAt(0).toUpperCase()}
+    <>
+      <Section title="Account" description={user.provider === 'google' ? 'Signed in with Google.' : 'Signed in with email.'}>
+        <div className="account-who">
+          <span className="account-avatar" aria-hidden="true">
+            {(user.name || user.email).trim().charAt(0).toUpperCase()}
+          </span>
+          <span className="account-id">
+            {user.name && <strong>{user.name}</strong>}
+            <span>{user.email}</span>
+          </span>
+        </div>
+        <div className="actions">
+          <button className="btn secondary" onClick={() => out(false)} disabled={busy}>
+            {busy ? 'Signing out…' : 'Sign Out'}
+          </button>
+          <button className="btn danger-text account-delete" onClick={() => setDeleting(true)}>
+            Delete Account
+          </button>
+        </div>
+        {signOutDialog}
+        <DeleteAccountDialog
+          open={deleting}
+          onClose={() => setDeleting(false)}
+          provider={user.provider}
+          resume={resume}
+        />
+      </Section>
+
+      <Section title="Sync" description="Your tasks, projects and settings, on every device you sign in on.">
+        <label className="switch-row">
+          <input
+            type="checkbox"
+            className="switch"
+            checked={!account.paused}
+            onChange={(e) => setDeviceSync(e.target.checked)}
+          />
+          <span>
+            <strong>Sync this device</strong>
+            Turn off to stop syncing here for now. Changes are kept and sync when you turn it back on.
+          </span>
+        </label>
+        {!account.paused && <SyncStatus account={account} />}
+        {account.earlierData && <EarlierData />}
+      </Section>
+
+      <PrivacySection account={account} />
+    </>
+  )
+}
+
+function PrivacySection({ account }) {
+  const [confirmOff, setConfirmOff] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const journalOn = account.consent.journal
+
+  const change = async (on) => {
+    setBusy(true)
+    const { error } = await setJournalSync(on)
+    setBusy(false)
+    if (error) showToast(error, { tone: 'error' })
+    else showToast(on ? 'Journal sync is on.' : 'Journal sync is off. Your journal was removed from your account.')
+  }
+
+  return (
+    <Section title="Privacy" description="Your journal can include health information, so it only syncs if you choose.">
+      <label className="switch-row">
+        <input
+          type="checkbox"
+          className="switch"
+          checked={journalOn}
+          disabled={busy}
+          onChange={(e) => (e.target.checked ? change(true) : setConfirmOff(true))}
+        />
+        <span>
+          <strong>Sync journal entries</strong>
+          {journalOn
+            ? 'Your journal, mood and energy entries are stored in your account so they sync.'
+            : 'Your journal, mood and energy entries stay on this device only.'}
         </span>
-        <span className="account-id">
-          {user.name && <strong>{user.name}</strong>}
-          <span>{user.email}</span>
-        </span>
-      </div>
-      <SyncStatus account={account} />
-      {account.earlierData && <EarlierData />}
+      </label>
       <div className="actions">
-        <button className="btn secondary" onClick={() => out(false)} disabled={busy}>
-          {busy ? 'Signing out…' : 'Sign Out'}
+        <button className="btn secondary" onClick={downloadBackup}>
+          <DownloadIcon width={16} height={16} /> Download a Copy of My Data
         </button>
       </div>
-      {signOutDialog}
+      <p className="settings-note">
+        <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms</Link>
+      </p>
+      <ConfirmDialog
+        open={confirmOff}
+        title="Turn off journal sync?"
+        message="Your journal entries will be removed from your account and stop syncing. They stay on this device."
+        confirmLabel="Turn Off"
+        onConfirm={() => change(false)}
+        onCancel={() => setConfirmOff(false)}
+      />
     </Section>
   )
+}
+
+// Deleting is permanent, so the person confirms it's them first: the password
+// again for email accounts, or a recent Google sign-in. The server checks this
+// too (delete-account refuses a sign-in older than 10 minutes).
+function DeleteAccountDialog({ open, onClose, provider, resume }) {
+  const google = provider === 'google'
+  const [removeLocal, setRemoveLocal] = useState(Boolean(resume?.removeLocal))
+  const [password, setPassword] = useState('')
+  const [recent, setRecent] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const [captchaKey, setCaptchaKey] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (!open) return
+    if (resume) setRemoveLocal(Boolean(resume.removeLocal))
+    lastSignInAt().then((at) => setRecent(Date.now() - at < RECENT_SIGN_IN_MS))
+  }, [open, resume])
+
+  const close = () => {
+    if (busy) return
+    clearDeleteIntent()
+    setError(null)
+    setPassword('')
+    setRemoveLocal(false)
+    onClose()
+  }
+
+  const remove = async () => {
+    setBusy(true)
+    setError(null)
+    if (!google) {
+      const confirmed = await confirmWithPassword({ password, captchaToken })
+      setCaptchaKey((k) => k + 1)
+      if (confirmed.error) {
+        setBusy(false)
+        return setError(/don’t match/.test(confirmed.error) ? 'That password isn’t right. Try again.' : confirmed.error)
+      }
+    }
+    const result = await deleteAccount({ removeLocal })
+    setBusy(false)
+    if (result.error) {
+      if (result.reauth) setRecent(false)
+      return setError(result.error)
+    }
+    clearDeleteIntent()
+    onClose()
+    showToast(
+      removeLocal
+        ? 'Your account was deleted, and its data was removed from this device.'
+        : 'Your account was deleted. Your data is still on this device.',
+      { duration: 8000 }
+    )
+  }
+
+  const signInAgain = async () => {
+    setBusy(true)
+    setError(null)
+    const result = await confirmWithGoogle({ removeLocal })
+    // On success the page leaves for Google.
+    if (result.error) {
+      setBusy(false)
+      setError(result.error)
+    }
+  }
+
+  const ready = google ? recent : password.length > 0 && (!captchaEnabled || Boolean(captchaToken))
+
+  return (
+    <Dialog open={open} onClose={close} title="Delete your account?" size="sm">
+      <p className="confirm-message">
+        This permanently deletes your ImpactMe account and everything stored in it: your tasks, projects, journal
+        entries, settings and consent records. It can’t be undone.
+      </p>
+      <p className="confirm-message">Download a copy of your data first if you want to keep it.</p>
+      <label className="switch-row">
+        <input
+          type="checkbox"
+          className="switch"
+          checked={removeLocal}
+          onChange={(e) => setRemoveLocal(e.target.checked)}
+        />
+        <span>
+          <strong>Also remove data from this device</strong>
+          Otherwise your data stays here and ImpactMe keeps working on this device without an account.
+        </span>
+      </label>
+
+      <div className="reauth">
+        {google ? (
+          recent ? (
+            <p className="settings-note">You’ve just signed in with Google, so you can delete your account now.</p>
+          ) : (
+            <>
+              <p className="settings-note">For your security, sign in with Google again to confirm it’s you.</p>
+              <button type="button" className="btn secondary" onClick={signInAgain} disabled={busy}>
+                Sign In With Google Again
+              </button>
+            </>
+          )
+        ) : (
+          <>
+            <div className="field">
+              <label htmlFor="delete-password">Enter your password to confirm it’s you</label>
+              <input
+                id="delete-password"
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setError(null)
+                }}
+              />
+            </div>
+            <Turnstile onToken={setCaptchaToken} resetKey={captchaKey} />
+          </>
+        )}
+      </div>
+
+      {error && (
+        <p className="settings-note account-warning" role="alert">
+          {error}
+        </p>
+      )}
+      <footer className="dialog-foot">
+        <button type="button" className="btn ghost" onClick={close} disabled={busy} autoFocus>
+          Cancel
+        </button>
+        <button type="button" className="btn danger" onClick={remove} disabled={busy || !ready}>
+          {busy ? 'Deleting…' : 'Delete Account'}
+        </button>
+      </footer>
+    </Dialog>
+  )
+}
+
+// Downloads a backup file of everything on this device (a copy of your data).
+function downloadBackup() {
+  const backup = createBackup(getSnapshot())
+  downloadFile(backupFilename(), JSON.stringify(backup, null, 2))
+  updateSettings({ lastBackupAt: Date.now() })
+  showToast('Backup downloaded')
 }
 
 function SyncStatus({ account }) {
@@ -530,7 +777,7 @@ function NotificationsSection() {
           <li>Do Not Disturb, Focus modes and battery savers can hide or delay notifications.</li>
           <li>
             Reminders that arrive while the browser is completely closed would need a push server. ImpactMe doesn’t
-            use one, so your tasks never leave this device.
+            use one. If you use ImpactMe on several devices, a reminder can appear on each of them.
           </li>
         </ul>
       </details>
@@ -644,12 +891,8 @@ function DataSection() {
   }
   useEffect(refresh, [])
 
-  function download() {
-    const backup = createBackup(getSnapshot())
-    downloadFile(backupFilename(), JSON.stringify(backup, null, 2))
-    updateSettings({ lastBackupAt: Date.now() })
-    showToast('Backup downloaded')
-  }
+  const download = downloadBackup
+  const signedIn = useAccount().status === 'signed-in'
 
   async function chooseFile(e) {
     const file = e.target.files?.[0]
@@ -679,7 +922,11 @@ function DataSection() {
   return (
     <Section
       title="Data & backup"
-      description="Everything you write stays in this browser on this device. Nothing is sent to a server."
+      description={
+        signedIn
+          ? 'Everything is saved on this device and in your ImpactMe account, so it can sync.'
+          : 'Everything you write stays in this browser on this device. Nothing is sent to a server.'
+      }
     >
       <div className="data-summary">
         <div>
@@ -876,6 +1123,7 @@ function ShortcutsSection() {
 }
 
 function AboutSection() {
+  const signedIn = useAccount().status === 'signed-in'
   return (
     <Section title="About">
       <div className="about">
@@ -883,7 +1131,10 @@ function AboutSection() {
         <div>
           <strong>ImpactMe</strong>
           <p>Make Every Day Count. Your personal space to plan, organize, reflect and grow.</p>
-          <p className="about-meta">Version {__APP_VERSION__} · Your data never leaves this device.</p>
+          <p className="about-meta">
+            Version {__APP_VERSION__} ·{' '}
+            {signedIn ? 'Saved on this device and in your ImpactMe account.' : 'Your data stays on this device.'}
+          </p>
         </div>
       </div>
     </Section>

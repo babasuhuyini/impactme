@@ -14,7 +14,7 @@ import Todos from './pages/Todos.jsx'
 import Settings from './pages/Settings.jsx'
 import useJournal from './hooks/useJournal.js'
 import { rollForwardBlocks } from './data/actions.js'
-import { clearNotice, useAccount } from './data/account.js'
+import { clearNotice, getDeleteIntent, useAccount } from './data/account.js'
 import { journal, projects, tasks } from './data/store.js'
 import AccountRoutes, { isAccountRoute, isSignInRoute } from './pages/account/AccountRoutes.jsx'
 import { welcomeDismissed } from './pages/account/SignIn.jsx'
@@ -97,6 +97,13 @@ export default function App() {
       navigate('/', { replace: true })
     }
   }, [account.status, account.recovery, account.consent.status, account.device, pathname, navigate])
+
+  // Back from signing in with Google again to confirm deleting the account:
+  // Settings reopens the Delete Account dialog.
+  useEffect(() => {
+    if (account.status !== 'signed-in' || account.consent.status !== 'done' || account.device !== 'linked') return
+    if (pathname !== '/settings' && getDeleteIntent()) navigate('/settings', { replace: true })
+  }, [account.status, account.consent.status, account.device, pathname, navigate])
 
   // A sign-in link that didn't work (expired, opened in another browser).
   useEffect(() => {

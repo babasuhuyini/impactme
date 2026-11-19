@@ -11,7 +11,7 @@
 
 export const REMOTE_TABLE = { tasks: 'tasks', journal: 'journal_entries', projects: 'projects' }
 
-// kind: 'network' (retry later) | 'auth' (sign in again) | 'server'
+// kind: 'network' (retry later) | 'auth' (sign in again) | 'reauth' (confirm it's you) | 'server'
 export class SyncError extends Error {
   constructor(kind, code) {
     super(`Sync failed (${kind}${code ? `: ${code}` : ''})`)
@@ -57,6 +57,31 @@ export function supabaseTransport(client) {
     },
 
     deleteJournal: () => run(client.rpc('delete_my_journal_entries')),
+
+    // The delete-account Edge Function; it deletes only the signed-in caller.
+    async deleteAccount() {
+      let result
+      try {
+        result = await client.functions.invoke('delete-account', { method: 'POST' })
+      } catch (error) {
+        throw new SyncError('network', error?.name)
+      }
+      const { error } = result
+      if (!error) return
+      const status = error.context?.status
+      if (error.name === 'FunctionsFetchError' || error.name === 'FunctionsRelayError') {
+        throw new SyncError('network', error.name)
+      }
+      let code = ''
+      try {
+        code = (await error.context.json())?.error ?? ''
+      } catch {
+        // No readable body.
+      }
+      // The person must sign in again (password or Google) before deleting.
+      if (code === 'reauth_required') throw new SyncError('reauth', code)
+      throw new SyncError(status === 401 ? 'auth' : 'server', code || String(status ?? error.name))
+    },
 
     // After an auth error: true if a fresh session was obtained.
     async refresh() {

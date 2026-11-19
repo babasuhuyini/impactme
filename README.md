@@ -36,10 +36,13 @@ Reminders that arrive while the browser is completely closed would need a push s
 
 ## Your data
 
-Everything is stored **only in your browser on your device** (IndexedDB). Nothing is sent to a server, and there is no account.
+An account is optional.
 
-- Data doesn't sync between devices or browsers.
-- Clearing your browser's site data deletes it. Use **Settings → Download backup** regularly.
+- **Without an account**, everything is stored **only in your browser on your device** (IndexedDB). Nothing is sent to a server, and data doesn't sync between devices or browsers.
+- **Signed in**, your data is still saved on your device, and also stored in your ImpactMe account so it can sync to your other devices. Journal, mood and energy entries can include health information, so they only go to your account if you agree to it; you can turn that off in **Settings → Privacy**, which removes them from your account.
+- Signing out removes your account's data from that device. **Settings → Account → Delete Account** deletes your account and everything in it.
+- Clearing your browser's site data deletes what's on that device. Use **Settings → Download backup** regularly.
+- Known limitation: if ImpactMe is open on several devices, a reminder can appear on each of them.
 - **Restore from backup** checks the file first, and lets you combine it with what's there or replace everything. A copy of your data from before the restore is kept, so you can undo it.
 
 On first launch, ImpactMe copies any Daybook data into its new storage. The original Daybook copy is left in place.

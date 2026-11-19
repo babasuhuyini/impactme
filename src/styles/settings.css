@@ -342,3 +342,21 @@
 .account-warning {
   color: var(--danger);
 }
+
+.account-delete {
+  color: var(--danger);
+}
+
+.reauth {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+.reauth .field {
+  width: 100%;
+}

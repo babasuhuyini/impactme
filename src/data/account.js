@@ -40,6 +40,8 @@ let state = {
   reauth: false,
   // A snapshot from "Not Now" exists: "Add this device's earlier data".
   earlierData: false,
+  // "Sync this device" is switched off.
+  paused: false,
 }
 const listeners = new Set()
 const set = (patch) => {
@@ -289,6 +291,68 @@ export async function signOut() {
     console.warn('Sign-out request failed', error?.name ?? 'unknown')
   }
   return { error: null }
+}
+
+/* Confirming it's you (before deleting the account) ----------------------- */
+
+// The server requires a sign-in within 10 minutes to delete an account; the
+// app treats 8 minutes as recent so there's time to press Delete.
+export const RECENT_SIGN_IN_MS = 8 * 60 * 1000
+
+// When this session last proved who it is (password or Google), from the
+// `amr` timestamps in the access token, or 0 if unknown. Refreshing a session
+// doesn't change it; signing in again does.
+export async function lastSignInAt() {
+  try {
+    const { data } = await client.auth.getSession()
+    const part = data.session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    const bytes = Uint8Array.from(atob(part.padEnd(part.length + ((4 - (part.length % 4)) % 4), '=')), (c) => c.charCodeAt(0))
+    const claims = JSON.parse(new TextDecoder().decode(bytes))
+    const times = (claims.amr ?? []).map((a) => Number(a.timestamp)).filter(Number.isFinite)
+    return times.length ? Math.max(...times) * 1000 : 0
+  } catch {
+    return 0
+  }
+}
+
+// Email accounts: the password again (a fresh sign-in as the same person).
+export const confirmWithPassword = ({ password, captchaToken }) =>
+  state.user ? signInWithEmail({ email: state.user.email, password, captchaToken }) : { error: 'Sign in first.' }
+
+// Google accounts: a fresh Google sign-in. The page leaves for Google; the
+// delete dialog reopens on return (it never deletes without a final click).
+const DELETE_INTENT_KEY = 'impactme.deleteAfterSignIn'
+export async function confirmWithGoogle({ removeLocal }) {
+  try {
+    sessionStorage.setItem(
+      DELETE_INTENT_KEY,
+      JSON.stringify({ userId: state.user?.id, removeLocal: Boolean(removeLocal), at: Date.now() })
+    )
+  } catch {
+    // Storage blocked: after returning, Delete Account just has to be opened again.
+  }
+  const result = await signInWithGoogle()
+  if (result.error) clearDeleteIntent()
+  return result
+}
+
+// A delete in progress before a Google sign-in, if it's this user's and recent.
+export function getDeleteIntent() {
+  try {
+    const intent = JSON.parse(sessionStorage.getItem(DELETE_INTENT_KEY))
+    if (intent && intent.userId === state.user?.id && Date.now() - intent.at < 10 * 60 * 1000) return intent
+  } catch {
+    // Nothing usable.
+  }
+  return null
+}
+
+export function clearDeleteIntent() {
+  try {
+    sessionStorage.removeItem(DELETE_INTENT_KEY)
+  } catch {
+    // Nothing to clear.
+  }
 }
 
 /* Consent ---------------------------------------------------------------- */
