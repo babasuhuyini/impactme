@@ -374,6 +374,8 @@ async function prepareDevice(account) {
     await kvSet(JOURNAL_KEY, account.consent.journal)
     setSyncState({
       device: 'linked',
+      counts: null,
+      otherAccount: false,
       reauth: false,
       paused: (await kvGet(PAUSED_KEY)) === true,
       lastSyncedAt: (await kvGet(LAST_SYNC_KEY)) ?? null,
@@ -393,10 +395,19 @@ async function prepareDevice(account) {
   }
   if (!counts.tasks && !counts.projects && !counts.journal) {
     await linkDevice(id, account.consent.journal)
-    setSyncState({ device: 'linked', reauth: false, lastSyncedAt: null, earlierData: Boolean(await kvGet(SNAPSHOT_KEY)) })
+    setSyncState({
+      device: 'linked',
+      counts: null,
+      otherAccount: false,
+      reauth: false,
+      lastSyncedAt: null,
+      earlierData: Boolean(await kvGet(SNAPSHOT_KEY)),
+    })
     return syncNow()
   }
-  setSyncState({ device: 'choose', counts })
+  // Always set explicitly: a flag left over from an earlier sign-in must never
+  // turn "Not Now" into removing this person's own data.
+  setSyncState({ device: 'choose', counts, otherAccount: false })
 }
 
 // The answer on "Bring this device's data with you?": 'add', 'later', or
@@ -405,7 +416,9 @@ export async function chooseDeviceData(choice) {
   const account = getAccount()
   if (account.status !== 'signed-in') return
   const { id } = account.user
-  if (choice === 'add' && !account.otherAccount) await addDeviceData(id, account.consent.journal)
+  // "Not Now" only ever keeps data aside; it never removes anything.
+  if (choice === 'later') await keepDeviceDataAside(id, account.consent.journal)
+  else if (choice === 'add' && !account.otherAccount) await addDeviceData(id, account.consent.journal)
   else if (choice === 'remove' || account.otherAccount) {
     await clearAccountData([...SYNC_KV_KEYS, SNAPSHOT_KEY])
     await linkDevice(id, account.consent.journal)
@@ -479,7 +492,7 @@ export async function deleteAccount({ removeLocal = false } = {}) {
     await signOut()
     if (removeLocal) await clearDeviceForSignOut()
     else await unlinkDevice()
-    setSyncState({ device: 'unknown', counts: null, reauth: false, paused: false, earlierData: false, lastSyncedAt: null, syncStatus: 'idle', syncError: null })
+    setSyncState({ device: 'unknown', counts: null, otherAccount: false, reauth: false, paused: false, earlierData: false, lastSyncedAt: null, syncStatus: 'idle', syncError: null })
   } finally {
     signingOut = false
   }
@@ -510,7 +523,7 @@ export async function signOutDevice({ force = false } = {}) {
   try {
     await signOut()
     await clearDeviceForSignOut()
-    setSyncState({ device: 'unknown', counts: null, reauth: false, paused: false, earlierData: false, lastSyncedAt: null, syncStatus: 'idle', syncError: null })
+    setSyncState({ device: 'unknown', counts: null, otherAccount: false, reauth: false, paused: false, earlierData: false, lastSyncedAt: null, syncStatus: 'idle', syncError: null })
   } finally {
     signingOut = false
   }
@@ -526,8 +539,8 @@ async function onAccountChange() {
     const linked = !signingOut && Boolean(await kvGet(LINK_KEY))
     const now = getAccount()
     // Only when something changed: this function runs on every account change.
-    if (now.status === 'signed-out' && (now.device !== 'unknown' || now.reauth !== linked)) {
-      setSyncState({ device: 'unknown', reauth: linked })
+    if (now.status === 'signed-out' && (now.device !== 'unknown' || now.reauth !== linked || now.otherAccount)) {
+      setSyncState({ device: 'unknown', counts: null, otherAccount: false, reauth: linked })
     }
     return
   }

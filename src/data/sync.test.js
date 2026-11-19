@@ -503,6 +503,22 @@ describe('another account’s data on this device (audit M3)', () => {
     expect(await kv(LINK_KEY)).toBe('user-2')
     expect(server.tables.tasks.has(theirs.id)).toBe(false)
   })
+
+  it('"Not Now" never removes data, even with a leftover other-account flag', async () => {
+    const { applyAuthEvent, setSyncState } = await import('./account.js')
+    const { chooseDeviceData } = await import('./sync.js')
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    setTransport({ ...server, refresh: async () => false })
+    const mine = await addTask('My own task')
+    applyAuthEvent('SIGNED_IN', {
+      user: { id: 'user-3', email: 'c@example.com', user_metadata: {}, app_metadata: { provider: 'email' } },
+    })
+    setSyncState({ device: 'choose', otherAccount: true, counts: { tasks: 1, projects: 0, journal: 0 } })
+
+    await chooseDeviceData('later')
+    expect(await kv(SNAPSHOT_KEY)).toBeTruthy()
+    expect(server.tables.tasks.has(mine.id)).toBe(false)
+  })
 })
 
 describe('account limits (audit M2)', () => {
