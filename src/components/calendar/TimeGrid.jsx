@@ -100,7 +100,14 @@ export default function TimeGrid({ days, events, today, nowMinutes, preview, dra
                   {formatTimeRange(fromMinutes(preview.start), fromMinutes(preview.end))}
                 </div>
               )}
-              {day === today && <div className="now-line" style={{ top: pct(nowMinutes) }} aria-hidden="true" />}
+              {day === today && (
+                <div
+                  className="now-line"
+                  style={{ top: pct(nowMinutes) }}
+                  data-time={formatClock(fromMinutes(nowMinutes)).replace(/\s?[AP]M$/i, '')}
+                  aria-hidden="true"
+                />
+              )}
             </div>
           ))}
         </div>

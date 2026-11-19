@@ -37,7 +37,9 @@ export default function App() {
   const { create } = useJournal()
   const writing = /^\/journal\/.+/.test(pathname)
   // Phone screens with their own back link in place of the shared header.
-  const ownHeader = /^\/tasks\/.+/.test(pathname)
+  const ownHeader = /^\/(tasks\/.+|calendar)/.test(pathname)
+  // The calendar's toolbar is its top bar on desktop.
+  const ownTopbar = pathname.startsWith('/calendar')
   // Task details open beside the page on desktop.
   const taskOpen = Boolean(useTaskEditor())
 
@@ -153,7 +155,7 @@ export default function App() {
 
       <div className={writing ? 'main writing' : 'main'}>
         {/* Desktop: a slim bar with the actions every page shares. */}
-        <header className="topbar">
+        <header className={ownTopbar ? 'topbar hidden' : 'topbar'}>
           <div className="topbar-actions">
             <button
               className="icon-btn topbar-btn"
@@ -177,7 +179,7 @@ export default function App() {
           <Route path="/" element={<Dashboard onQuickAdd={() => setQuickAddOpen(true)} />} />
           <Route path="/tasks/project/:projectId" element={<Todos />} />
           <Route path="/tasks/:view?" element={<Todos />} />
-          <Route path="/calendar/:view?/:date?" element={<Calendar />} />
+          <Route path="/calendar/:view?/:date?" element={<Calendar onQuickAdd={() => setQuickAddOpen(true)} />} />
           <Route path="/todos/:view?" element={<LegacyTodos />} />
           <Route path="/journal/:entryId?" element={<Journal />} />
           <Route path="/settings" element={<Settings />} />

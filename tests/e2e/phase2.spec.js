@@ -240,7 +240,8 @@ test('calendar: schedule, drag, resize, overlaps, blocks and export', async ({ p
 
   // Schedule an undated task by dragging it in from the side panel.
   await quickAdd(page, 'Read paper')
-  await page.getByRole('button', { name: /Unscheduled/ }).click()
+  // On desktop the unscheduled list is always beside the grid.
+  await expect(page.getByRole('heading', { name: 'Unscheduled' })).toBeVisible()
   const item = page.locator('.unscheduled-item', { hasText: 'Read paper' })
   const itemBox = await item.boundingBox()
   await page.mouse.move(itemBox.x + 20, itemBox.y + itemBox.height / 2)
