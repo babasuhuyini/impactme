@@ -815,3 +815,15 @@ kbd {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* iOS Safari zooms the page in when a field under 16px gets focus, and leaves
+   it zoomed (and cut off at the side) after the keyboard closes. On touch
+   screens every text field is at least 16px, so that zoom never happens;
+   pinch-to-zoom still works. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}

@@ -18,9 +18,16 @@
   --auth-check-border: var(--muted);
 }
 
+/* Phones: fixed to the visible area (set from visualViewport in AuthLayout),
+   so the on-screen keyboard can't slide the form off the top of the screen. */
 .auth {
+  position: fixed;
+  top: var(--auth-top, 0px);
+  left: 0;
+  right: 0;
   height: var(--auth-vh, 100dvh);
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   justify-content: center;
   background: var(--auth-bg);
@@ -442,6 +449,7 @@
 /* Wide screens: a centred card on #F6F8F7. */
 @media (min-width: 861px) {
   .auth {
+    position: static;
     height: auto;
     min-height: 100dvh;
     align-items: center;
