@@ -7,26 +7,52 @@
 // field centre their content above the button instead (`centered`).
 // Wide screens (over 860px): the same content in a centred card.
 
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeftIcon, EyeIcon, EyeOffIcon } from '../icons.jsx'
 import googleG from '../../assets/google-g.svg'
 
-// iOS doesn't shrink the layout for the keyboard, so size to what's visible.
-function useVisibleHeight() {
-  const read = () => window.visualViewport?.height ?? window.innerHeight
-  const [height, setHeight] = useState(read)
+// Pins the screen to the part of the page you can actually see. When the
+// keyboard opens, mobile browsers (iOS Safari and Chrome on Android) keep the
+// page the same size and slide the visible area down over it. Shrinking the
+// screen to that height alone left it at the top of the page, above the visible
+// area, so the fields went off the top. So the screen follows the visible area's
+// position as well as its height, and the focused field is scrolled back into view.
+function useVisibleViewport(ref) {
   useEffect(() => {
+    const el = ref.current
     const vv = window.visualViewport
-    const update = () => setHeight(read())
-    vv?.addEventListener('resize', update)
-    addEventListener('resize', update)
-    return () => {
-      vv?.removeEventListener('resize', update)
-      removeEventListener('resize', update)
+    if (!el) return
+    let frame = 0
+    const apply = () => {
+      frame = 0
+      const height = vv?.height ?? window.innerHeight
+      const top = vv?.offsetTop ?? 0
+      el.style.setProperty('--auth-vh', `${height}px`)
+      el.style.setProperty('--auth-top', `${top}px`)
     }
-  }, [])
-  return height
+    const update = () => {
+      if (!frame) frame = requestAnimationFrame(apply)
+    }
+    // After the keyboard opens or closes, bring the focused field back into view.
+    const onResize = () => {
+      update()
+      const active = document.activeElement
+      if (active && el.contains(active) && active.matches('input, textarea, select')) {
+        requestAnimationFrame(() => active.scrollIntoView({ block: 'center' }))
+      }
+    }
+    apply()
+    vv?.addEventListener('resize', onResize)
+    vv?.addEventListener('scroll', update)
+    addEventListener('resize', onResize)
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+      vv?.removeEventListener('resize', onResize)
+      vv?.removeEventListener('scroll', update)
+      removeEventListener('resize', onResize)
+    }
+  }, [ref])
 }
 
 // Goes back within the app, or to `fallback` when this screen was opened directly.
@@ -36,7 +62,8 @@ export function useBack(fallback = '/welcome') {
 }
 
 export function AuthScreen({ icon: Icon, badge, title, subtitle, children, actions, onBack, onSubmit, centered = false }) {
-  const height = useVisibleHeight()
+  const screen = useRef(null)
+  useVisibleViewport(screen)
   const Panel = onSubmit ? 'form' : 'div'
   const submit = (e) => {
     e.preventDefault()
@@ -55,7 +82,7 @@ export function AuthScreen({ icon: Icon, badge, title, subtitle, children, actio
   )
 
   return (
-    <div className="auth" style={{ '--auth-vh': `${height}px` }}>
+    <div className="auth" ref={screen}>
       <Panel className={centered ? 'auth-panel centered' : 'auth-panel'} onSubmit={onSubmit && submit} noValidate>
         {onBack && (
           <button type="button" className="auth-back" onClick={onBack} aria-label="Back">
